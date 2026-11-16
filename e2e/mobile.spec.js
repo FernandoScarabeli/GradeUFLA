@@ -1,5 +1,6 @@
 const path = require('path');
 const { test, expect } = require('@playwright/test');
+const { stubGoogleCalendar } = require('./googleStub');
 
 const fixturesDir = path.join(__dirname, 'fixtures');
 
@@ -142,6 +143,20 @@ test.describe('fluxo mobile com dados controlados', () => {
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Minha grade' })).toBeVisible();
     await expect(credits(page)).toHaveAccessibleName('4 de 32 créditos');
+  });
+
+  test('exporta a grade pro Google Agenda pela gaveta', async ({ page }) => {
+    const chamadas = await stubGoogleCalendar(page);
+    await addSubject(page, 'Programação Web', 'A');
+
+    await page.getByRole('button', { name: 'Exportar pro Google Agenda' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Exportar pro Google Agenda' });
+    await sheet.getByLabel('De').fill('2026-08-10');
+    await sheet.getByLabel('Até').fill('2026-12-11');
+    await sheet.getByRole('button', { name: 'Exportar', exact: true }).click();
+    await expect(sheet).toHaveCount(0);
+    await expect(page.getByRole('status').filter({ hasText: 'Sua grade está no Google Agenda' })).toBeVisible();
+    expect(chamadas).toHaveLength(2);
   });
 });
 

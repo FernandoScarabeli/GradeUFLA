@@ -1,5 +1,6 @@
 const path = require('path');
 const { test, expect } = require('@playwright/test');
+const { stubGoogleCalendar } = require('./googleStub');
 
 const fixturesDir = path.join(__dirname, 'fixtures');
 
@@ -119,6 +120,33 @@ test.describe('fluxos críticos com dados controlados', () => {
 
     await page.mouse.up();
     await expect(ghost).toHaveCount(0);
+  });
+
+  test('exporta a grade pro Google Agenda no período escolhido', async ({ page }) => {
+    const chamadas = await stubGoogleCalendar(page);
+    await addSubject(page, 'Programação Web', 'A');
+
+    await page.getByRole('button', { name: 'Exportar pro Google Agenda' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Exportar pro Google Agenda' });
+    await dialog.getByLabel('De').fill('2026-08-10');
+    await dialog.getByLabel('Até').fill('2026-08-01');
+    await dialog.getByRole('button', { name: 'Entrar com Google e exportar' }).click();
+    await expect(dialog.getByRole('alert')).toHaveText(/depois da inicial/);
+
+    await dialog.getByLabel('Até').fill('2026-12-11');
+    await dialog.getByRole('button', { name: 'Entrar com Google e exportar' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByText(/Sua grade está no Google Agenda/)).toBeVisible();
+
+    expect(chamadas.map(({ method, url }) => `${method} ${new URL(url).pathname}`)).toEqual([
+      'POST /calendar/v3/calendars',
+      'POST /calendar/v3/calendars/grade%40group.calendar.google.com/events'
+    ]);
+    expect(chamadas[1].body).toMatchObject({
+      summary: 'Programação Web',
+      start: { dateTime: '2026-08-10T08:00:00', timeZone: 'America/Sao_Paulo' },
+      recurrence: ['RRULE:FREQ=WEEKLY;UNTIL=20261212T030000Z']
+    });
   });
 });
 
