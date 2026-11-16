@@ -1,9 +1,9 @@
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getNomeMateria } from '../../data';
+import { getNomeMateriaOuCodigo } from '../../data';
 import { calcularTotalCreditos } from '../../domain/gradeRules';
 import CalendarBoard from './CalendarBoard';
 import CalendarSidebar from './CalendarSidebar';
-import PrerequisiteModal from './PrerequisiteModal';
+import PrerequisiteModal from '../Modal/PrerequisiteModal';
 import useCalendarDrag from './useCalendarDrag';
 import useCalendarExport from './useCalendarExport';
 import {
@@ -46,20 +46,7 @@ const Calendar = forwardRef(({
   }, []);
 
   const triggerToast = useCallback((message, level = 'info') => {
-    if (typeof onShowToast === 'function') {
-      try {
-        onShowToast(message, level);
-        return;
-      } catch (error) {
-        console.warn('onShowToast handler threw an error, using fallback:', error);
-      }
-    }
-
-    try {
-      window.dispatchEvent(new CustomEvent('gradeufla-toast', { detail: { message, level } }));
-    } catch (error) {
-      console.log(`[toast:${level}]`, message);
-    }
+    onShowToast?.(message, level);
   }, [onShowToast]);
 
   const allMateriasList = useMemo(() => [
@@ -166,19 +153,9 @@ const Calendar = forwardRef(({
     }
 
     const prereqsUnicos = [...new Set(prereqs.map(item => String(item).trim()))].filter(Boolean);
-    prereqsUnicos.forEach(codigo => {
-      if (typeof onConfirmMinimo === 'function') {
-        onConfirmMinimo(codigo);
-      } else {
-        try {
-          window.dispatchEvent(new CustomEvent('gradeufla-confirm-minimo', { detail: { codigo } }));
-        } catch (error) {
-          // O navegador pode não oferecer CustomEvent; a confirmação visual ainda é encerrada.
-        }
-      }
-    });
+    prereqsUnicos.forEach(codigo => onConfirmMinimo?.(codigo));
 
-    const nomes = prereqsUnicos.map(codigo => getNomeMateria(codigo) || codigo).join(', ');
+    const nomes = prereqsUnicos.map(getNomeMateriaOuCodigo).join(', ');
     const mensagens = {
       forte: `Pré-requisito(s) forte(s) ${nomes} confirmado(s) como cursado(s).`,
       minimo: `Pré-requisito ${nomes} confirmado como cursado com média mínima.`,

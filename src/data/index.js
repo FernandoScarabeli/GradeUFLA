@@ -1,7 +1,9 @@
-// Central data loader: prefer CSVs from /public/data when available; do NOT fall back to in-memory mock modules
+// Carregador central: lê os CSVs de /public/data (sem fallback para dados mockados)
 
+import { useSyncExternalStore } from 'react';
 import { loadCursos, loadMaterias, computeTotalSemestres } from './csvLoader';
 export {
+  getPendenciasPrerequisito,
   verificarPreRequisitos,
   verificarPreRequisitosDetalhada
 } from '../domain/gradeRules';
@@ -25,6 +27,10 @@ export const subscribeCsvLoadState = listener => {
   csvLoadListeners.add(listener);
   return () => csvLoadListeners.delete(listener);
 };
+
+/** Hook React que acompanha o estado da carga dos CSVs (idle/loading/success/error). */
+export const useCsvLoadState = () =>
+  useSyncExternalStore(subscribeCsvLoadState, getCsvLoadState, getCsvLoadState);
 
 function buildDadosPorCurso(cursos, materiasRows) {
   const dadosPorCurso = {};
@@ -87,11 +93,10 @@ export function ensureCsvLoaded() {
   setCsvLoadState('loading');
   csvLoadPromise = (async () => {
     try {
-      let cursos = await loadCursos();
-      const materiasRows = await loadMaterias();
+      const [cursosCarregados, materiasRows] = await Promise.all([loadCursos(), loadMaterias()]);
 
-      // Compute totalSemestres dynamically based on subjects
-      cursos = computeTotalSemestres(cursos, materiasRows);
+      // Calcula o total de semestres de cada matriz a partir das disciplinas
+      const cursos = computeTotalSemestres(cursosCarregados, materiasRows);
       const dadosPorCurso = buildDadosPorCurso(cursos, materiasRows);
       const nomesMaterias = buildNomesMaterias(materiasRows);
 
@@ -100,12 +105,10 @@ export function ensureCsvLoaded() {
       csvNomesMaterias = nomesMaterias;
       csvData = { cursos, dadosPorCurso };
 
-      try {
-        // expose for debugging during development
+      if (import.meta.env.DEV && typeof window !== 'undefined') {
+        // Expostos apenas em desenvolvimento para depuração no console
         window.__csvCursos = csvCursos;
         window.__csvDadosPorCurso = csvDadosPorCurso;
-      } catch (e) {
-        // ignore if window not available
       }
 
       setCsvLoadState('success');
@@ -137,33 +140,33 @@ export function retryCsvLoad() {
   return ensureCsvLoaded();
 }
 
-// EXPORTS (CSV-first wrappers)
+// Consultas sobre os dados carregados
 
-// Get course info (prefers CSV)
+// Informações do curso
 export const getCursoInfo = (cursoId) => {
   if (!csvCursos) return null;
   return (csvCursos || []).find(c => c.id === cursoId) || null;
 };
 
-// Get total semestres for a specific course/matriz combination
+// Total de semestres de uma combinação curso/matriz
 export const getTotalSemestres = (cursoId, matrizId) => {
   if (!csvCursos || !cursoId) return 8; // fallback
   const curso = csvCursos.find(c => c.id === cursoId);
   if (!curso) return 8;
 
-  // If no matriz specified, use the most recent (backward compatibility)
+  // Sem matriz: usa a mais recente
   if (!matrizId) return curso.totalSemestres || 8;
 
-  // Use the matriz-specific value if available
+  // Valor específico da matriz, quando existir
   if (curso.totalSemestresPorMatriz && curso.totalSemestresPorMatriz[matrizId]) {
     return curso.totalSemestresPorMatriz[matrizId];
   }
 
-  // Fallback to default
+  // Valor padrão
   return curso.totalSemestres || 8;
 };
 
-// Get materias por semestre (CSV-aware) - returns [] when not available
+// Matérias por semestre; retorna [] quando os dados não estão disponíveis
 export function getMateriasPorSemestre(cursoId, semestre, matrizId) {
   if (!csvDadosPorCurso) return [];
   const dados = csvDadosPorCurso;
@@ -246,7 +249,7 @@ export function getMatrizesByCurso(cursoId) {
     const matrizesObj = csvDadosPorCurso[cursoId].matrizes || {};
     const keys = Object.keys(matrizesObj);
     if (keys.length > 0) {
-      // parse keys that look like year/period or yearperiod into numeric score
+      // Converte chaves como 2019/01 em número para ordenar
       const parseKey = (k) => {
         if (!k) return null;
         const m = String(k).match(/(\d{4})\D*(\d{1,2})/);
@@ -287,4 +290,9 @@ export function buscarCursos(termo) {
 export function getNomeMateria(codigo) {
   if (!csvNomesMaterias || codigo === undefined || codigo === null) return null;
   return csvNomesMaterias.get(String(codigo)) || null;
+}
+
+/** Nome da matéria para exibição; usa o próprio código quando o nome não é conhecido. */
+export function getNomeMateriaOuCodigo(codigo) {
+  return getNomeMateria(codigo) || String(codigo ?? '');
 }

@@ -1,4 +1,11 @@
-import { loadCsv, loadMaterias } from './csvLoader';
+import { diaUflaParaIndice, loadCsv, loadMaterias } from './csvLoader';
+
+test('converte o dia da UFLA (1=Dom ... 7=Sáb) para o índice 0..6', () => {
+  expect(diaUflaParaIndice(2)).toBe(1);
+  expect(diaUflaParaIndice('6')).toBe(5);
+  expect(diaUflaParaIndice(7)).toBe(6);
+  expect(diaUflaParaIndice('Seg')).toBe('Seg');
+});
 
 describe('validação dos CSVs', () => {
   afterEach(() => {

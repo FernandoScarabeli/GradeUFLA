@@ -2,8 +2,21 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import SubjectCard from './SubjectCard';
 
 vi.mock('../../data', () => ({
-  getNomeMateria: codigo => codigo,
-  verificarPreRequisitosDetalhada: materia => materia.detalhes
+  getNomeMateriaOuCodigo: codigo => codigo,
+  getPendenciasPrerequisito: (materia, { prerequisitosConfirmados = [] } = {}) => {
+    const pendentes = codigos => (codigos || []).filter(c => !prerequisitosConfirmados.includes(c));
+    const faltandoForte = pendentes(materia.detalhes.faltandoForte);
+    const faltandoMinimo = pendentes(materia.detalhes.faltandoMinimo);
+    const faltandoCoreq = pendentes(materia.detalhes.faltandoCoreq);
+    const podeAdicionar = faltandoForte.length === 0 && faltandoMinimo.length === 0;
+    return {
+      faltandoForte,
+      faltandoMinimo,
+      faltandoCoreq,
+      podeAdicionar,
+      todosCumpridos: podeAdicionar && faltandoCoreq.length === 0
+    };
+  }
 }));
 
 const renderCard = (materia, onDragStart = vi.fn()) => {

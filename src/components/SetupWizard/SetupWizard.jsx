@@ -9,7 +9,7 @@ import {
   getMatrizesByCurso,
   getTotalSemestres,
   retryCsvLoad,
-  subscribeCsvLoadState
+  useCsvLoadState
 } from '../../data';
 import './SetupWizard.css';
 
@@ -18,7 +18,7 @@ const SetupWizard = forwardRef(({
   onVoltar,
   onShowToast,
   initialStep = 1,
-  // controlled values from App so they persist between mounts
+  // Valores controlados pelo App para sobreviverem entre montagens
   cursoSelecionado,
   setCursoSelecionado,
   matrizSelecionada,
@@ -27,18 +27,14 @@ const SetupWizard = forwardRef(({
   setSemestreSelecionado
 }, ref) => {
   const [dropdownError, setDropdownError] = useState(false);
-  const [csvLoadState, setCsvLoadState] = useState(getCsvLoadState);
+  const csvLoadState = useCsvLoadState();
 
   useEffect(() => {
-    const unsubscribe = subscribeCsvLoadState(setCsvLoadState);
-    const currentState = getCsvLoadState();
-    setCsvLoadState(currentState);
-    if (currentState.status === 'idle') {
+    if (getCsvLoadState().status === 'idle') {
       ensureCsvLoaded().catch(() => {
         // O estado central mantém o erro para exibição e retry.
       });
     }
-    return unsubscribe;
   }, []);
 
   const cursoInfo = cursoSelecionado ? getCursoInfo(cursoSelecionado) : null;

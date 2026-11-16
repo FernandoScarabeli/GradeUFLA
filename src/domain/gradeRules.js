@@ -2,6 +2,7 @@ export const CREDIT_MAX = 32;
 export const SATURDAY_INDEX = 6;
 export const ANP_START_HOUR = 9;
 export const ANP_END_HOUR = 22;
+export const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 const DIAS_NORMALIZADOS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
 
@@ -244,4 +245,71 @@ export function getPendenciasCorequisitosCalendario(
   }
 
   return pendencias;
+}
+
+/**
+ * Pendências de pré-requisito já descontando os códigos que o usuário
+ * confirmou manualmente. É a fonte única usada pelo card, pelo drag e pelo modal.
+ */
+export function getPendenciasPrerequisito(
+  materia,
+  {
+    materiasAprovadas = [],
+    materiasNoCalendario = {},
+    prerequisitosConfirmados = [],
+    allMateriasList = null
+  } = {}
+) {
+  const calendarioComMateria = materia?.codigo
+    ? { ...materiasNoCalendario, [materia.codigo]: materia }
+    : materiasNoCalendario;
+  const detalhes = verificarPreRequisitosDetalhada(
+    materia,
+    materiasAprovadas,
+    calendarioComMateria,
+    allMateriasList
+  );
+  const confirmados = new Set(prerequisitosConfirmados);
+  const pendentes = codigos => (codigos || []).filter(codigo => !confirmados.has(codigo));
+  const faltandoForte = pendentes(detalhes.faltandoForte);
+  const faltandoMinimo = pendentes(detalhes.faltandoMinimo);
+  const faltandoCoreq = pendentes(detalhes.faltandoCoreq);
+  const podeAdicionar = faltandoForte.length === 0 && faltandoMinimo.length === 0;
+
+  return {
+    faltandoForte,
+    faltandoMinimo,
+    faltandoCoreq,
+    podeAdicionar,
+    todosCumpridos: podeAdicionar && faltandoCoreq.length === 0
+  };
+}
+
+/** Indica se trocar/adicionar a matéria ultrapassa o limite de créditos. */
+export function excedeLimiteCreditos(materiasNoCalendario = {}, materia) {
+  return calcularTotalAposSelecao(materiasNoCalendario, materia) > CREDIT_MAX;
+}
+
+/** Códigos que devem ser desmarcados em cascata quando `codigo` deixa de ser aprovado.
+ * Só pré-requisitos forte/mínimo propagam: co-requisito é cursado junto e não
+ * invalida uma aprovação já obtida. */
+export function getDependentesAprovados(codigo, materiasAprovadas = [], materias = []) {
+  const aprovadas = new Set(materiasAprovadas);
+  const remover = new Set([codigo]);
+  let mudou = true;
+  while (mudou) {
+    mudou = false;
+    for (const materia of materias) {
+      if (!aprovadas.has(materia.codigo) || remover.has(materia.codigo)) continue;
+      const detalhada = materia.preRequisitosDetalhada;
+      const requisitos = detalhada
+        ? [...(detalhada.forte || []), ...(detalhada.minimo || [])]
+        : (materia.preRequisitos || []);
+      if (requisitos.some(requisito => remover.has(requisito))) {
+        remover.add(materia.codigo);
+        mudou = true;
+      }
+    }
+  }
+  return remover;
 }

@@ -1,17 +1,22 @@
-import { getNomeMateria, verificarPreRequisitosDetalhada } from '../../data';
+import { useId, useRef } from 'react';
+import { getNomeMateriaOuCodigo, getPendenciasPrerequisito } from '../../data';
 import {
-  calcularTotalAposSelecao,
-  CREDIT_MAX,
+  DIAS_SEMANA,
   isTurmaSelecionavel,
   normalizarDia,
   normalizarHora,
   verificarConflitoMateria
 } from '../../domain/gradeRules';
-import { useId, useRef } from 'react';
 import useAccessibleDialog from '../../hooks/useAccessibleDialog';
 import './Modal.css';
 
-const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const descreverConflito = conflito => {
+  if (!conflito.horarioConflito) return conflito.mensagem || '';
+  const diaNome = DIAS_SEMANA[normalizarDia(conflito.horarioConflito.dia)] || 'Dia';
+  const inicio = normalizarHora(conflito.horarioConflito.inicio);
+  const fim = normalizarHora(conflito.horarioConflito.fim);
+  return `Conflito com ${conflito.materiaConflito} - ${diaNome} ${inicio}:00-${fim}:00`;
+};
 
 const MateriaModal = ({
   materia,
@@ -64,63 +69,28 @@ const MateriaModal = ({
       isProcessingRef.current = false;
     }, 300);
 
-    // Verificar limite de créditos ANTES de tudo
-    const novoTotal = calcularTotalAposSelecao(materiasNoCalendario, materia);
+    // Pré-requisitos são checados aqui; créditos, conflito e ANP são validados
+    // (com mensagem própria) pelo handleAddMateria do App.
+    const { faltandoForte, faltandoMinimo } = getPendenciasPrerequisito(materia, {
+      materiasAprovadas,
+      materiasNoCalendario,
+      prerequisitosConfirmados: materiasMinimoConfirmadas,
+      allMateriasList
+    });
 
-    if (novoTotal > CREDIT_MAX) {
-      if (typeof onShowToast === 'function') {
-        onShowToast(
-          `Adicionar esta matéria excederia o limite de 32 créditos.`,
-          'error'
-        );
-      }
-      return;
-    }
-
-    // Verificar pré-requisitos ANTES de adicionar
-    const det = verificarPreRequisitosDetalhada(materia, materiasAprovadas, materiasNoCalendario, allMateriasList);
-
-    // Filter prereqs usando lista de confirmados
-    const faltandoForteRaw = det.faltandoForte || [];
-    const faltandoForte = faltandoForteRaw.filter(pr => !materiasMinimoConfirmadas.includes(pr));
-
-    const faltandoMinimoRaw = det.faltandoMinimo || [];
-    const faltandoMinimo = faltandoMinimoRaw.filter(pr => !materiasMinimoConfirmadas.includes(pr));
-
-    // Se falta pré-requisito forte -> bloquear
     if (faltandoForte.length > 0) {
-      if (typeof onShowToast === 'function') {
-        onShowToast(
-          `Pré-requisitos fortes faltando: ${faltandoForte.map(f => getNomeMateria(f)).join(', ')}`,
-          'error'
-        );
-      }
+      onShowToast?.(
+        `Pré-requisitos fortes faltando: ${faltandoForte.map(getNomeMateriaOuCodigo).join(', ')}`,
+        'error'
+      );
       return;
     }
 
-    // Se falta pré-requisito mínimo -> bloquear
     if (faltandoMinimo.length > 0) {
-      if (typeof onShowToast === 'function') {
-        onShowToast(
-          `Pré-requisito mínimo necessário: ${faltandoMinimo.map(f => getNomeMateria(f)).join(', ')}`,
-          'error'
-        );
-      }
-      return;
-    }
-
-    // Verificar conflito de horários
-    const conflito = getConflitoParaTurma(turma);
-    if (conflito.temConflito) {
-      if (typeof onShowToast === 'function') {
-        const diaNome = DIAS_SEMANA[normalizarDia(conflito.horarioConflito?.dia)] || 'Dia';
-        const inicio = normalizarHora(conflito.horarioConflito?.inicio);
-        const fim = normalizarHora(conflito.horarioConflito?.fim);
-        onShowToast(
-          `Conflito de horário com "${conflito.materiaConflito}" - ${diaNome} das ${inicio}:00 às ${fim}:00`,
-          'error'
-        );
-      }
+      onShowToast?.(
+        `Pré-requisito mínimo necessário: ${faltandoMinimo.map(getNomeMateriaOuCodigo).join(', ')}`,
+        'error'
+      );
       return;
     }
 
@@ -128,18 +98,27 @@ const MateriaModal = ({
       ...materia,
       turmaId: turma.id,
       horarios: turma.horarios || [],
-      anp: turma.anp === true,  // Passa a flag anp da turma
-      turmaAnp: turma.anp === true  // Backup da flag
+      anp: turma.anp === true,
+      turmaAnp: turma.anp === true
     };
 
-    if (typeof onSave === 'function') {
-      // call onSave but do NOT close the modal here; parent controls closing
-      // handleAddMateria will verify conflicts with the latest state
-      onSave(nova);
-    }
+    // O modal continua aberto; quem decide fechar é o componente pai.
+    onSave?.(nova);
   };
 
   if (!materia) return null;
+
+  const pendencias = getPendenciasPrerequisito(materia, {
+    materiasAprovadas,
+    materiasNoCalendario,
+    prerequisitosConfirmados: materiasMinimoConfirmadas,
+    allMateriasList
+  });
+  const prerequisitosPendentes = new Set([
+    ...pendencias.faltandoForte,
+    ...pendencias.faltandoMinimo,
+    ...pendencias.faltandoCoreq
+  ]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -209,14 +188,7 @@ const MateriaModal = ({
               const turmaDisponivel = isTurmaSelecionavel(turma);
 
               const conflito = getConflitoParaTurma(turma);
-              const conflitoLabel = conflito.temConflito
-                ? conflito.horarioConflito ? (() => {
-                    const diaNome = DIAS_SEMANA[normalizarDia(conflito.horarioConflito?.dia)] || 'Dia';
-                    const inicio = normalizarHora(conflito.horarioConflito?.inicio);
-                    const fim = normalizarHora(conflito.horarioConflito?.fim);
-                    return `Conflito com ${conflito.materiaConflito} - ${diaNome} ${inicio}:00-${fim}:00`;
-                  })() : conflito.mensagem
-                : '';
+              const conflitoLabel = conflito.temConflito ? descreverConflito(conflito) : '';
 
               return (
                 <div
@@ -271,18 +243,19 @@ const MateriaModal = ({
            </div>
          </div>
 
-        {materia.preRequisitos.length > 0 && (
+        {materia.preRequisitos?.length > 0 && (
           <div className="modal-prereq">
             <span className="modal-label">Pré-requisitos:</span>
             <div className="prereq-lista">
               {materia.preRequisitos.map(pr => {
-                const cumprido = materiasAprovadas.includes(pr);
+                // Considera aprovadas, confirmações manuais e co-requisitos já na grade
+                const cumprido = !prerequisitosPendentes.has(pr);
                 return (
                   <span
                     key={pr}
                     className={`prereq-badge ${cumprido ? 'prereq-badge--completed' : 'prereq-badge--pending'}`}
                   >
-                    <i className={`fi ${cumprido ? 'fi-br-check' : 'fi-br-cross'}`}></i> {getNomeMateria(pr)}
+                    <i className={`fi ${cumprido ? 'fi-br-check' : 'fi-br-cross'}`} aria-hidden="true"></i> {getNomeMateriaOuCodigo(pr)}
                   </span>
                 );
               })}

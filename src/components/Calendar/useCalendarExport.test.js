@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import useCalendarExport from './useCalendarExport';
 
 vi.mock('../../data', () => ({
-  getNomeMateria: codigo => codigo
+  getNomeMateriaOuCodigo: codigo => codigo
 }));
 
 describe('exportação do calendário', () => {

@@ -1,4 +1,4 @@
-import { getNomeMateria, verificarPreRequisitosDetalhada } from '../../data';
+import { getNomeMateriaOuCodigo, getPendenciasPrerequisito } from '../../data';
 
 export default function SubjectCard({
   materia,
@@ -21,22 +21,18 @@ export default function SubjectCard({
 }) {
   if (materiasNoCalendario[materia.codigo] || !matchesFilter) return null;
 
-  const calendarioComMateria = { ...materiasNoCalendario, [materia.codigo]: materia };
-  const detalhes = verificarPreRequisitosDetalhada(
-    materia,
+  const {
+    faltandoForte,
+    faltandoMinimo,
+    faltandoCoreq,
+    podeAdicionar,
+    todosCumpridos
+  } = getPendenciasPrerequisito(materia, {
     materiasAprovadas,
-    calendarioComMateria,
+    materiasNoCalendario,
+    prerequisitosConfirmados: materiasMinimoConfirmadas,
     allMateriasList
-  );
-  const removerConfirmados = codigos =>
-    (codigos || []).filter(codigo => !materiasMinimoConfirmadas.includes(codigo));
-  const faltandoForte = removerConfirmados(detalhes.faltandoForte);
-  const faltandoMinimo = removerConfirmados(detalhes.faltandoMinimo);
-  const faltandoCoreq = removerConfirmados(detalhes.faltandoCoreq);
-  const todosCumpridos = faltandoForte.length === 0
-    && faltandoMinimo.length === 0
-    && faltandoCoreq.length === 0;
-  const podeAdicionar = faltandoForte.length === 0 && faltandoMinimo.length === 0;
+  });
   const isBeingDragged = isDragging && draggingMateria?.codigo === materia.codigo;
 
   const cardClasses = [
@@ -50,11 +46,11 @@ export default function SubjectCard({
 
   let missingBadge = null;
   if (faltandoForte.length > 0) {
-    missingBadge = { color: 'red', text: `Falta: ${faltandoForte.map(getNomeMateria).join(', ')}` };
+    missingBadge = { color: 'red', text: `Falta: ${faltandoForte.map(getNomeMateriaOuCodigo).join(', ')}` };
   } else if (faltandoMinimo.length > 0) {
-    missingBadge = { color: 'orange', text: `Mínimo: ${faltandoMinimo.map(getNomeMateria).join(', ')}` };
+    missingBadge = { color: 'orange', text: `Mínimo: ${faltandoMinimo.map(getNomeMateriaOuCodigo).join(', ')}` };
   } else if (faltandoCoreq.length > 0) {
-    missingBadge = { color: '#F9DC5C', text: `Co-req: ${faltandoCoreq.map(getNomeMateria).join(', ')}` };
+    missingBadge = { color: '#F9DC5C', text: `Co-req: ${faltandoCoreq.map(getNomeMateriaOuCodigo).join(', ')}` };
   }
 
   return (

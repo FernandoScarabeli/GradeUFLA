@@ -29,7 +29,10 @@ span[class*=" fi-br-"]::before {
 .fi-br-bullseye-pointer::before { content: "\f308"; }
 .fi-br-check-circle::before { content: "\f3c5"; }
 .fi-br-check::before { content: "\f3c9"; }
+.fi-br-cross::before { content: "\f4fa"; }
+.fi-br-cross-circle::before { content: "\f4f7"; }
 .fi-br-cross-small::before { content: "\f4f9"; }
+.fi-br-info::before { content: "\f813"; }
 .fi-br-download::before { content: "\f594"; }
 .fi-br-lock::before { content: "\f8dd"; }
 .fi-br-menu-dots-vertical::before { content: "\f92c"; }

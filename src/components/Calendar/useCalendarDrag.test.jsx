@@ -5,10 +5,12 @@ import useCalendarDrag, {
 } from './useCalendarDrag';
 
 vi.mock('../../data', () => ({
-  verificarPreRequisitosDetalhada: () => ({
+  getPendenciasPrerequisito: () => ({
     faltandoForte: [],
     faltandoMinimo: [],
-    faltandoCoreq: []
+    faltandoCoreq: [],
+    podeAdicionar: true,
+    todosCumpridos: true
   })
 }));
 
@@ -171,7 +173,7 @@ describe('arraste do calendário', () => {
     sidebar.remove();
   });
 
-  test('troca de turma não aplica novamente o limite de créditos', () => {
+  test('troca de turma substitui a matéria sem removê-la (preserva co-requisitos)', () => {
     const completa = {
       codigo: 'GCC001',
       nome: 'Em troca',
@@ -190,7 +192,8 @@ describe('arraste do calendário', () => {
     act(() => utils.hookResult.current.handleDragStartFromCalendar(pointerEvent(200, 200), materiasNoCalendario.GCC001));
     act(() => utils.hookResult.current.handleMouseUp(pointerEvent(350, 350)));
 
-    expect(utils.onRemoveMateria).toHaveBeenCalledWith('GCC001');
+    // Remover antes apagaria em cascata os co-requisitos já na grade
+    expect(utils.onRemoveMateria).not.toHaveBeenCalled();
     expect(utils.onAddMateria).toHaveBeenCalledWith(expect.objectContaining({ codigo: 'GCC001', turmaId: 'B' }));
     expect(utils.triggerToast).not.toHaveBeenCalledWith(expect.stringContaining('Limite de créditos'), 'error');
   });
