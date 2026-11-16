@@ -17,9 +17,8 @@ async function stubGoogleCalendar(page) {
   };
   // O script real não pode carregar por cima do falso.
   await page.route('https://accounts.google.com/gsi/client*', route => route.fulfill({ contentType: 'text/javascript', body: '' }));
-  // Vale para as próximas navegações e para a página que já está aberta.
+  // Chame antes do page.goto: vale para todas as navegações da página.
   await page.addInitScript(instalar);
-  await page.evaluate(instalar);
 
   const chamadas = [];
   await page.route('https://www.googleapis.com/**', route => {

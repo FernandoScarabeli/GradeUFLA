@@ -56,8 +56,12 @@ async function addSubject(page, name, turma) {
 }
 
 test.describe('fluxos críticos com dados controlados', () => {
+  let chamadasGoogle;
+
   test.beforeEach(async ({ page, isMobile }) => {
     test.skip(isMobile, 'O celular usa o fluxo próprio, coberto em mobile.spec.js.');
+    // Antes de navegar: o script real do Google não pode chegar depois do falso.
+    chamadasGoogle = await stubGoogleCalendar(page);
     await completeFlow(page);
   });
 
@@ -123,7 +127,7 @@ test.describe('fluxos críticos com dados controlados', () => {
   });
 
   test('exporta a grade pro Google Agenda no período escolhido', async ({ page }) => {
-    const chamadas = await stubGoogleCalendar(page);
+    const chamadas = chamadasGoogle;
     await addSubject(page, 'Programação Web', 'A');
 
     await page.getByRole('button', { name: 'Exportar pro Google Agenda' }).click();
