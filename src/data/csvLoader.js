@@ -1,12 +1,24 @@
 import Papa from 'papaparse';
 
-const CSV_DATA_VERSION = import.meta.env.VITE_CSV_VERSION || '2026-07-27';
+const CSV_DATA_VERSION = import.meta.env.VITE_CSV_VERSION || '2026-07-28';
 
 const versionCsvPath = path => {
   if (!path.startsWith('/data/')) return path;
   const separator = path.includes('?') ? '&' : '?';
   return `${path}${separator}v=${encodeURIComponent(CSV_DATA_VERSION)}`;
 };
+
+/**
+ * Converte o dia do CSV (convenção da UFLA: 1=Dom, 2=Seg ... 7=Sáb) para o
+ * índice usado no app (0=Dom ... 6=Sáb). É o ÚNICO ponto de conversão: o
+ * restante do código (gradeRules) recebe sempre 0..6.
+ */
+export function diaUflaParaIndice(valor) {
+  const numero = Number(valor);
+  if (Number.isNaN(numero)) return valor;
+  if (numero >= 1 && numero <= 7) return numero - 1;
+  return numero;
+}
 
 class CsvFetchError extends Error {
   constructor(path, status) {
@@ -22,7 +34,7 @@ const formatParseError = (path, parseError) => {
   return new Error(`CSV inválido em ${path}${line}${detail}`);
 };
 
-// helper to fetch csv from public/data and parse it
+// Busca um CSV em public/data e faz o parse
 export function loadCsv(path) {
   return fetch(versionCsvPath(path))
     .then(res => {
@@ -45,19 +57,19 @@ export function loadCsv(path) {
     }));
 }
 
-// Try parsing a prereq string like "Forte: A, B; Minimo: C; Co-requisito: D" into structured object
+// Converte "Forte: A, B; Minimo: C; Co-requisito: D" em objeto estruturado
 function parsePreRequisitosString(preField) {
   const result = { forte: [], minimo: [], coreq: [] };
   if (!preField) return result;
   const s = preField.toString().trim();
   if (!s) return result;
 
-  // split by semicolon or new line to separate labeled groups
+  // Separa os grupos rotulados por ponto e vírgula ou quebra de linha
   const parts = s.split(/[;\n]+/).map(p => p.trim()).filter(Boolean);
   const hasLabel = /\bForte\b|\bMinimo\b|\bCo-?requisito\b/i.test(s);
 
   if (!hasLabel) {
-    // split by commas or slashes or pipes as fallback (use RegExp constructor to avoid needing to escape '/').
+    // Sem rótulo: separa por vírgula, barra ou pipe e trata tudo como forte
     const items = s.split(new RegExp('[,|/]+')).map(x => x.trim()).filter(Boolean);
     result.forte = items;
     return result;
@@ -75,13 +87,13 @@ function parsePreRequisitosString(preField) {
       const list = m[1].split(/[;,]+/).map(x => x.trim()).filter(Boolean);
       result.coreq.push(...list);
     } else {
-      // unlabeled fragment -> treat as forte entries
+      // Fragmento sem rótulo é tratado como forte
       const list = part.split(/[;,]+/).map(x => x.trim()).filter(Boolean);
       result.forte.push(...list);
     }
   });
 
-  // normalize codes (trim and remove stray punctuation)
+  // Normaliza os códigos (remove pontuação e espaços)
   ['forte', 'minimo', 'coreq'].forEach(k => {
     result[k] = result[k].map(code => (code || '').toString().replace(/[^A-Za-z0-9_-]/g, '').toUpperCase()).filter(Boolean);
   });
@@ -95,8 +107,8 @@ async function tryLoad(paths) {
       const rows = await loadCsv(p);
       if (rows && rows.length) return rows;
     } catch (e) {
-      // Alternate filenames are only valid when the previous file does not exist.
-      // Parse, permission and network errors must remain visible to the UI.
+      // Só tenta o próximo nome se o arquivo anterior não existir (404).
+      // Erros de parse, permissão e rede precisam chegar à interface.
       if (!(e instanceof CsvFetchError) || e.status !== 404) throw e;
     }
   }
@@ -109,7 +121,7 @@ const assertRequired = (value, { entity, field, rowIndex }) => {
 };
 
 export async function loadCursos() {
-  // try common filenames and languages
+  // Tenta os nomes de arquivo conhecidos
   const paths = ['/data/courses.csv', '/data/cursos.csv', '/data/example_cursos.csv'];
   const rows = await tryLoad(paths);
 
@@ -121,7 +133,7 @@ export async function loadCursos() {
     return s;
   };
 
-  // Build unique courses by id
+  // Agrupa os cursos por id
   const map = new Map();
   rows.forEach((r, rowIndex) => {
     const id = (r.curso_id || r.id || r.curso || '').toString().trim();
@@ -135,23 +147,23 @@ export async function loadCursos() {
       map.set(id, {
         id,
         nome: nome || id,
-        // optional: try to parse other fields if present
+        // Campos opcionais
         tipo: r.tipo || r.type || 'Bacharelado',
-        // totalSemestres will be computed dynamically from subjects later
+        // totalSemestres é recalculado depois a partir das disciplinas
         totalSemestres: 8, // fallback value
-        // If not specified, assume course is available (implemented) when loaded from CSV
+        // Sem a coluna, o curso é considerado implementado
         implementado: (r.implementado || 'true').toString().toLowerCase() === 'true',
-        // collect matrices found for this course
+        // Matrizes encontradas para o curso
         _matrizesSet: new Set()
       });
     }
     if (matriz) map.get(id)._matrizesSet.add(matriz);
   });
 
-  // convert sets to arrays on each entry
+  // Converte os Sets em arrays
   const result = Array.from(map.values()).map(entry => {
     const matrizesArr = Array.from(entry._matrizesSet || []).filter(Boolean);
-    // sort matrizesArr descending by year/part if possible
+    // Ordena as matrizes da mais recente para a mais antiga
     matrizesArr.sort((a,b) => {
       const ma = String(a).match(/(\d{4})\D*(\d{1,2})/);
       const mb = String(b).match(/(\d{4})\D*(\d{1,2})/);
@@ -165,9 +177,9 @@ export async function loadCursos() {
   return result;
 }
 
-// Compute totalSemestres for each course/matriz dynamically from subjects
+// Calcula o total de semestres de cada curso/matriz a partir das disciplinas
 export function computeTotalSemestres(cursos, materias) {
-  // Group materias by curso + matriz
+  // Agrupa as matérias por curso + matriz
   const matrizSemestresMap = new Map(); // key: "cursoId|matriz" -> max semestre found
 
   materias.forEach(m => {
@@ -184,11 +196,11 @@ export function computeTotalSemestres(cursos, materias) {
     }
   });
 
-  // Apply computed values to cursos - store totalSemestres BY MATRIZ, not just the most recent one
+  // Guarda o total por matriz, não só o da mais recente
   cursos.forEach(curso => {
     if (!curso.matrizes || curso.matrizes.length === 0) return;
 
-    // Store totalSemestres for each matriz in a map
+    // Total de semestres por matriz
     if (!curso.totalSemestresPorMatriz) {
       curso.totalSemestresPorMatriz = {};
     }
@@ -203,7 +215,7 @@ export function computeTotalSemestres(cursos, materias) {
       }
     });
 
-    // Also set totalSemestres to the most recent matriz for backward compatibility
+    // totalSemestres do curso = o da matriz mais recente
     const mainMatriz = curso.matrizes[0];
     const mainKey = `${curso.id}|${mainMatriz}`;
     const mainComputed = matrizSemestresMap.get(mainKey);
@@ -214,12 +226,12 @@ export function computeTotalSemestres(cursos, materias) {
 }
 
 export async function loadMaterias() {
-  // try English and Portuguese filenames
+  // Tenta nomes de arquivo em inglês e português
   const paths = ['/data/subjects.csv', '/data/materias.csv', '/data/example_materias.csv'];
   const rows = await tryLoad(paths);
 
   return rows.map((r, rowIndex) => {
-    // normalize keys (accept curso_id / course_id as well)
+    // Aceita variações de nome de coluna (curso_id / course_id ...)
     const cursoRaw = (r.curso_id || r.course_id || r.curso || r.course || '').toString().trim() || undefined;
     const curso = cursoRaw ? cursoRaw.toString().trim() : undefined;
     const matrizRaw = (r.matriz || r.matrix || '').toString().trim() || undefined;
@@ -233,7 +245,7 @@ export async function loadMaterias() {
     const matriz = normalizeMatriz(matrizRaw);
     let semestreRaw = r.semestre || r.semester || r.period || '';
     semestreRaw = typeof semestreRaw === 'string' ? semestreRaw.trim() : semestreRaw;
-    // keep as string if not numeric
+    // Mantém como texto quando não é numérico
     const semestre = semestreRaw === '' ? undefined : (isNaN(Number(semestreRaw)) ? semestreRaw : Number(semestreRaw));
 
     const codigo = (r.codigo || r.code || '').toString().trim();
@@ -248,37 +260,28 @@ export async function loadMaterias() {
     assertRequired(codigo, { entity: 'disciplinas', field: 'código', rowIndex });
     assertRequired(nome, { entity: 'disciplinas', field: 'nome', rowIndex });
 
-    // preRequisitos may be a labeled string in the CSV; parse into structured object
+    // preRequisitos vem como texto rotulado no CSV
     const preField = r.preRequisitos || r.prerequisitos || r.prereqs || r.requisitos || '';
     const preDetalhado = parsePreRequisitosString(preField);
-    // flat array for backward compatibility
+    // Lista plana usada por consumidores antigos
     const preFlat = [...new Set([...(preDetalhado.forte || []), ...(preDetalhado.minimo || []), ...(preDetalhado.coreq || [])])];
 
-    // turmas may be JSON in the CSV cell or a simple notation; try JSON parse, fallback to empty
+    // turmas vem como JSON na célula; há também uma notação simples de fallback
     let turmas = [];
     const turmasField = r.turmas || r.turmas_json || r.classes || '';
     if (turmasField) {
       try {
-        // Remove wrapping quotes if present
+        // Remove aspas externas, se houver
         const raw = typeof turmasField === 'string' ? turmasField.trim().replace(/^"|"$/g, '') : turmasField;
         turmas = JSON.parse(raw);
-        // Normalize horario.dia values to 0..6 convention (0=Dom, 6=Sáb)
+        // Normaliza dia para 0..6 e horários "08:00" para número
         if (Array.isArray(turmas)) {
           turmas.forEach(t => {
             if (t && Array.isArray(t.horarios)) {
               t.horarios.forEach(h => {
                 if (!h || h.dia == null) return;
-                const nd = Number(h.dia);
-                if (!Number.isNaN(nd)) {
-                  if (nd >= 1 && nd <= 7) {
-                    h.dia = ((nd + 6) % 7 + 7) % 7;
-                  } else if (nd >= 0 && nd <= 6) {
-                    h.dia = nd;
-                  } else {
-                    h.dia = nd;
-                  }
-                }
-                // also normalize times like "08:00" to number hours
+                h.dia = diaUflaParaIndice(h.dia);
+
                 if (typeof h.inicio === 'string') {
                   const m = h.inicio.match(/^(\d{1,2})(?::(\d{2}))?/);
                   if (m) h.inicio = parseInt(m[1], 10);
@@ -292,7 +295,7 @@ export async function loadMaterias() {
           });
         }
       } catch (e) {
-        // not JSON, attempt simple parsing: format like "id:10A|horarios:3-8,5-8,7-9;anp:false"
+        // Não é JSON: tenta a notação "id:10A|horarios:3-8,5-8,7-9;anp:false"
         const raw = (typeof turmasField === 'string' ? turmasField.trim() : '');
         if (raw.startsWith('[') || raw.startsWith('{')) {
           throw new Error(`CSV inválido: linha ${rowIndex + 2} de disciplinas com JSON de turmas inválido.`);
@@ -313,9 +316,8 @@ export async function loadMaterias() {
                 hs.forEach(hsItem => {
                   const mm = hsItem.match(/(\d)\s*-\s*(\d+)/);
                   if (mm) {
-                    const dia = Number(mm[1]);
                     const inicio = Number(mm[2]);
-                    obj.horarios.push({ dia: dia >=1 && dia <=7 ? ((dia+6)%7) : dia, inicio, fim: inicio+1 });
+                    obj.horarios.push({ dia: diaUflaParaIndice(mm[1]), inicio, fim: inicio + 1 });
                   }
                 });
               }
@@ -337,7 +339,7 @@ export async function loadMaterias() {
       creditos,
       tipo,
       subgrupo,
-      preRequisitos: preFlat, // legacy consumers expect array
+      preRequisitos: preFlat,
       preRequisitosDetalhada: preDetalhado,
       turmas
     };

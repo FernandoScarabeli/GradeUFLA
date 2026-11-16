@@ -1,18 +1,22 @@
+import { useSyncExternalStore } from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from './App';
 import * as data from './data';
 
+vi.mock('./components/Particles', () => ({ default: () => null }));
+
 vi.mock('./components', async () => {
-  const [toast, hero, historico, calendar, materiaModal] = await Promise.all([
+  const [toast, hero, historico, calendar, materiaModal, setupWizard] = await Promise.all([
     vi.importActual('./components/Toast/Toast'),
     vi.importActual('./components/Hero/Hero'),
     vi.importActual('./components/Historico/Historico'),
     vi.importActual('./components/Calendar/Calendar'),
-    vi.importActual('./components/Modal/MateriaModal')
+    vi.importActual('./components/Modal/MateriaModal'),
+    vi.importActual('./components/SetupWizard/SetupWizard')
   ]);
   return {
-    Particles: () => null,
     AboutMe: () => null,
+    SetupWizard: setupWizard.default,
     Hero: hero.default,
     Historico: historico.default,
     Calendar: calendar.default,
@@ -24,18 +28,24 @@ vi.mock('./components', async () => {
 
 vi.mock('./data', async () => {
   const gradeRules = await vi.importActual('./domain/gradeRules');
+  const getCsvLoadState = vi.fn();
+  const subscribeCsvLoadState = vi.fn();
+  const getNomeMateria = vi.fn();
   return {
     ensureCsvLoaded: vi.fn(),
-    getCsvLoadState: vi.fn(),
+    getCsvLoadState,
+    useCsvLoadState: () => useSyncExternalStore(subscribeCsvLoadState, getCsvLoadState),
+    getNomeMateriaOuCodigo: codigo => getNomeMateria(codigo) || codigo,
+    getPendenciasPrerequisito: gradeRules.getPendenciasPrerequisito,
     getCursoInfo: vi.fn(),
     getCursosImplementados: vi.fn(),
     getEletivas: vi.fn(),
     getMateriasPorSemestre: vi.fn(),
     getMatrizesByCurso: vi.fn(),
-    getNomeMateria: vi.fn(),
+    getNomeMateria,
     getTotalSemestres: vi.fn(),
     retryCsvLoad: vi.fn(),
-    subscribeCsvLoadState: vi.fn(),
+    subscribeCsvLoadState,
     verificarPreRequisitos: gradeRules.verificarPreRequisitos,
     verificarPreRequisitosDetalhada: gradeRules.verificarPreRequisitosDetalhada
   };
@@ -231,4 +241,38 @@ test('responde a voltar e avançar do navegador sem perder a seleção do setup'
     window.dispatchEvent(new PopStateEvent('popstate', { state: { etapa: 'historico' } }));
   });
   expect(await screen.findByRole('heading', { name: 'Matérias' })).toBeInTheDocument();
+});
+
+test('confirmações de pré-requisito mínimo não sobrevivem a um novo setup', async () => {
+  const estatistica = {
+    codigo: 'GES105',
+    nome: 'Bioestatística',
+    semestre: 2,
+    creditos: 4,
+    tipo: 'obrigatoria',
+    preRequisitos: ['GMM116'],
+    preRequisitosDetalhada: { forte: [], minimo: ['GMM116'], coreq: [] },
+    turmas: [{ id: 'A', horarios: [{ dia: 3, inicio: 8, fim: 10 }] }]
+  };
+  data.getMateriasPorSemestre.mockReturnValue({ 1: [introducao], 2: [algoritmos, estatistica] });
+
+  const cardBloqueado = () => screen.getByText(estatistica.nome)
+    .closest('.materia-card')
+    .querySelector('.materia-card__minimo-btn');
+
+  render(<App />);
+  await reachCalendar();
+
+  fireEvent.click(cardBloqueado());
+  fireEvent.click(screen.getByRole('button', { name: /sim, destravar matéria/i }));
+  expect(cardBloqueado()).toBeNull();
+
+  // Volta até o setup e finaliza de novo
+  fireEvent.click(screen.getByRole('button', { name: /voltar/i }));
+  fireEvent.click(await screen.findByRole('button', { name: /^voltar$/i }));
+  fireEvent.click(await screen.findByRole('button', { name: /finalizar/i }));
+  fireEvent.click(await screen.findByRole('button', { name: /continuar para montagem/i }));
+
+  expect(await screen.findByText(estatistica.nome)).toBeInTheDocument();
+  expect(cardBloqueado()).not.toBeNull();
 });

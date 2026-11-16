@@ -399,7 +399,12 @@ function CalendarSidebar({
               const orderedKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
               const renderedGroups = orderedKeys.map(key => {
                 const label = key.toString();
-                const matchingQuery = groups[key].filter(materia => materia.nome.toLowerCase().includes(eletivasQuery.toLowerCase()));
+                const matchingQuery = groups[key].filter(materia => {
+                  const query = eletivasQuery.toLowerCase().trim();
+                  return !query
+                    || (materia.nome || '').toLowerCase().includes(query)
+                    || (materia.codigo || '').toLowerCase().includes(query);
+                });
                 const filteredMaterias = matchingQuery.filter(matchesFilter);
                 if (filteredMaterias.length === 0) {
                   if (filtroHorario.ativo && matchingQuery.length > 0) {

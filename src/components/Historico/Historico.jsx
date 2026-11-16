@@ -1,6 +1,9 @@
 import { forwardRef, useState } from 'react';
-import { verificarPreRequisitosDetalhada, getNomeMateria } from '../../data';
+import { verificarPreRequisitosDetalhada, getNomeMateriaOuCodigo } from '../../data';
+import PrerequisiteModal from '../Modal/PrerequisiteModal';
 import './Historico.css';
+
+const MODAL_FECHADO = { open: false, prereqs: [], tipo: null, materia: null };
 
 const Historico = forwardRef(({
   semestreAtual,
@@ -13,49 +16,54 @@ const Historico = forwardRef(({
   onShowToast
 }, ref) => {
   const [shakingMateria, setShakingMateria] = useState(null);
+  const [minimoModal, setMinimoModal] = useState(MODAL_FECHADO);
 
   const handleToggle = (materia) => {
     const isChecked = materiasAprovadas.includes(materia.codigo);
 
-    // Se está tentando marcar (não está marcada ainda)
-    if (!isChecked) {
-      // Verifica se tem pré-requisitos não cumpridos (detalhado)
-      const det = verificarPreRequisitosDetalhada(materia, materiasAprovadas, {});
-
-      if (det.faltandoForte && det.faltandoForte.length > 0) {
-        // Dispara animação de shake
-        setShakingMateria(materia.codigo);
-        setTimeout(() => setShakingMateria(null), 500);
-
-        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-
-        const nomes = det.faltandoForte.map(f => getNomeMateria(f)).join(', ');
-        onShowToast?.(`É necessário fazer ${nomes} antes (pré-requisito forte)`, 'error');
-        return;
-      }
-
-      if (det.faltandoMinimo && det.faltandoMinimo.length > 0) {
-        const nomes = det.faltandoMinimo.map(f => getNomeMateria(f)).join(', ');
-        const confirmed = window.confirm(`Você já cursou ${nomes} e obteve média mínima? Se sim, confirme para marcar como feita.`);
-        if (!confirmed) {
-          onShowToast?.(`Necessário ter cursado: ${nomes} (mínimo).`, 'warn');
-          return;
-        }
-        det.faltandoMinimo.forEach(codigo => onConfirmMinimo?.(codigo));
-      }
-
-      if (det.faltandoCoreq && det.faltandoCoreq.length > 0) {
-        const nomes = det.faltandoCoreq.map(f => getNomeMateria(f)).join(', ');
-        onShowToast?.(`Co-requisito(s) necessários: ${nomes}. Marque a co-requisito no calendário primeiro.`, 'warn');
-        return;
-      }
+    // Desmarcar nunca é bloqueado
+    if (isChecked) {
+      onToggleMateria(materia.codigo);
+      return;
     }
 
-    // Se passou na validação ou está desmarcando, faz o toggle
+    // Co-requisitos não são verificados aqui: eles são cursados junto, então uma
+    // aprovação já obtida não depende do par estar marcado (ex.: GQI170/GQI171).
+    const det = verificarPreRequisitosDetalhada(materia, materiasAprovadas, {});
+
+    if (det.faltandoForte?.length > 0) {
+      setShakingMateria(materia.codigo);
+      setTimeout(() => setShakingMateria(null), 500);
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+      const nomes = det.faltandoForte.map(getNomeMateriaOuCodigo).join(', ');
+      onShowToast?.(`É necessário fazer ${nomes} antes (pré-requisito forte)`, 'error');
+      return;
+    }
+
+    if (det.faltandoMinimo?.length > 0) {
+      setMinimoModal({ open: true, prereqs: det.faltandoMinimo, tipo: 'minimo', materia });
+      return;
+    }
+
     onToggleMateria(materia.codigo);
   };
 
-  // Validação para evitar array length inválido
+  const fecharModal = () => setMinimoModal(MODAL_FECHADO);
+
+  const cancelarMinimo = () => {
+    const nomes = minimoModal.prereqs.map(getNomeMateriaOuCodigo).join(', ');
+    onShowToast?.(`Necessário ter cursado: ${nomes} (mínimo).`, 'warning');
+    fecharModal();
+  };
+
+  const confirmarMinimo = () => {
+    minimoModal.prereqs.forEach(codigo => onConfirmMinimo?.(codigo));
+    onToggleMateria(minimoModal.materia.codigo);
+    fecharModal();
+  };
+
+  // Evita array com tamanho inválido
   const numSemestresAnteriores = Math.max(0, (semestreAtual || 1) - 1);
 
   return (
@@ -116,6 +124,13 @@ const Historico = forwardRef(({
           </button>
         </div>
       </div>
+
+      <PrerequisiteModal
+        modal={minimoModal}
+        onClose={cancelarMinimo}
+        onConfirm={confirmarMinimo}
+        confirmLabel="Sim, marcar como feita"
+      />
     </section>
   );
 });

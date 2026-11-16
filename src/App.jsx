@@ -1,17 +1,16 @@
-import { useState, useRef, useEffect } from 'react';
+import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
 
 // Components
 import {
-  Particles,
   Hero,
   Historico,
   Calendar,
   MateriaModal,
   ToastContainer,
-  useToast
+  useToast,
+  AboutMe,
+  SetupWizard
 } from './components';
-import { AboutMe } from './components';
-import SetupWizard from './components/SetupWizard';
 
 // Data
 import {
@@ -20,10 +19,13 @@ import {
   getEletivas,
   getMateriasPorSemestre,
   retryCsvLoad,
-  subscribeCsvLoadState
+  useCsvLoadState
 } from './data';
 import {
+  CREDIT_MAX,
+  excedeLimiteCreditos,
   findNextAnpHour,
+  getDependentesAprovados,
   isAnpTurma,
   isTurmaSelecionavel,
   normalizarDia,
@@ -34,6 +36,10 @@ import {
 
 // Styles
 import './styles/global.css';
+
+// O fundo animado (WebGL/ogl) é decorativo: carregado em um chunk separado
+// para não atrasar a primeira renderização.
+const Particles = lazy(() => import('./components/Particles'));
 
 // Etapas do fluxo
 const ETAPAS = {
@@ -65,21 +71,8 @@ const formatarHorario = (horario) => {
 function App() {
   const calendarioRef = useRef(null);
 
-  // Estados do sistema
-  // Inicializa etapa baseado no histórico do navegador (se houver)
-  const getInitialEtapa = () => {
-    try {
-      const state = window.history.state;
-      if (state && state.etapa && ETAPAS[state.etapa.toUpperCase()]) {
-        return state.etapa;
-      }
-    } catch (e) {
-      // Ignore errors
-    }
-    return ETAPAS.INICIO;
-  };
-
-  const [etapa, setEtapa] = useState(getInitialEtapa);
+  // Ao recarregar a página o fluxo sempre recomeça na tela inicial.
+  const [etapa, setEtapa] = useState(ETAPAS.INICIO);
   const [cursoSelecionado, setCursoSelecionado] = useState(null);
   const [matrizSelecionada, setMatrizSelecionada] = useState(null);
   const [semestreAtual, setSemestreAtual] = useState(null);
@@ -87,32 +80,32 @@ function App() {
   const [minimoConfirmados, setMinimoConfirmados] = useState([]); // lista de prereqs 'mínimo' que o usuário confirmou
   const [materiasNoCalendario, setMateriasNoCalendario] = useState({});
   const [modalMateria, setModalMateria] = useState(null);
-  const [csvLoadState, setCsvLoadState] = useState(getCsvLoadState);
+  const csvLoadState = useCsvLoadState();
   const [setupInitialStep, setSetupInitialStep] = useState(1);
 
   // Hook de toast para notificações
   const { toasts, addToast, removeToast } = useToast();
 
-  // Inicia uma única carga e acompanha o estado compartilhado pelo App e pelo wizard.
+  // Inicia uma única carga; o estado é compartilhado com o wizard via useCsvLoadState.
   useEffect(() => {
-    const unsubscribe = subscribeCsvLoadState(setCsvLoadState);
-    const currentState = getCsvLoadState();
-    setCsvLoadState(currentState);
-    if (currentState.status === 'idle') {
+    if (getCsvLoadState().status === 'idle') {
       ensureCsvLoaded().catch(() => {
         // O erro permanece no estado central e é apresentado na interface.
       });
     }
-    return unsubscribe;
+  }, []);
+
+  // Marca a entrada atual do histórico como tela inicial (uma vez, no carregamento).
+  useEffect(() => {
+    try {
+      window.history.replaceState({ etapa: ETAPAS.INICIO }, document.title, window.location.href);
+    } catch {
+      // Alguns ambientes (ex.: iframes restritos) não permitem alterar o histórico.
+    }
   }, []);
 
   // Integração com histórico do navegador (botões voltar/avançar)
   useEffect(() => {
-    // Inicializa o estado no histórico se ainda não existir
-    if (!window.history.state || !window.history.state.etapa) {
-      window.history.replaceState({ etapa }, document.title, window.location.href);
-    }
-
     // Handler para quando usuário clica em voltar/avançar
     const handlePopState = (event) => {
       if (event.state && event.state.etapa) {
@@ -158,34 +151,9 @@ function App() {
     }
   };
 
-  // Listen for fallback toast events dispatched by components that can't call addToast directly
-  useEffect(() => {
-    const handler = (e) => {
-      try {
-        const detail = e && e.detail ? e.detail : {};
-        const message = detail.message || detail.msg || 'Notification';
-        const level = detail.level || detail.type || 'info';
-        addToast(message, level);
-      } catch (err) {
-        console.warn('gradeufla-toast handler error', err);
-      }
-    };
+  const showToast = useCallback((mensagem, tipo) => addToast(mensagem, tipo), [addToast]);
 
-    window.addEventListener('gradeufla-toast', handler);
-    // also expose a direct global function fallback for legacy callers
-    // set on window so other modules can call window.gradeuflaAddToast(msg, level)
-    // This is cleaned up on unmount
-    window.gradeuflaAddToast = (msg, level = 'info') => addToast(msg, level);
-
-    return () => {
-      window.removeEventListener('gradeufla-toast', handler);
-      try { delete window.gradeuflaAddToast; } catch (e) { window.gradeuflaAddToast = undefined; }
-    };
-  }, [addToast]);
-
-  // Obtém dados do curso selecionado (consultas a curso são feitas nos componentes que precisarem)
-
-  // Usa curso + matriz para obter matérias (por enquanto só curso, depois pode expandir)
+  // Matérias do curso + matriz selecionados
   const materiasPorSemestre = cursoSelecionado ? getMateriasPorSemestre(cursoSelecionado, undefined, matrizSelecionada) : {};
   const eletivas = cursoSelecionado ? getEletivas(cursoSelecionado, matrizSelecionada) : [];
 
@@ -193,9 +161,8 @@ function App() {
   const allMateriasList = [...Object.values(materiasPorSemestre).flat(), ...eletivas];
 
   // Handlers de navegação
-  const handleGetStartedClick = async () => {
+  const handleGetStartedClick = () => {
     if (csvLoadState.status !== 'success') return;
-    // default to first step when starting flow
     setSetupInitialStep(1);
     navegarParaEtapa(ETAPAS.SETUP);
     setTimeout(() => {
@@ -222,28 +189,28 @@ function App() {
       materias.forEach(m => materiasAnteriores.push(m.codigo));
     }
     setMateriasAprovadas(materiasAnteriores);
+    // Confirmações manuais valem apenas para o curso/matriz em que foram feitas.
+    setMinimoConfirmados([]);
+    setMateriasNoCalendario({});
 
     navegarParaEtapa(ETAPAS.HISTORICO);
   };
 
   const handleVoltarParaInicio = () => {
-    // clear calendar when leaving montagem/setup flow
     setMateriasNoCalendario({});
     navegarParaEtapa(ETAPAS.INICIO);
   };
 
   const handleVoltarParaSetup = () => {
-    // when requesting to go back to the setup, start at last step (semestre selection)
+    // Ao voltar para o setup, abre direto na etapa de semestre
     setSetupInitialStep(3);
-    // clear calendar when leaving montagem
     setMateriasNoCalendario({});
     navegarParaEtapa(ETAPAS.SETUP);
   };
 
   const handleVoltarParaHistorico = () => {
-    // when going back from calendar to historico, we want the eventual return to SetupWizard to start at the last step
+    // Um retorno posterior ao setup deve abrir na etapa de semestre
     setSetupInitialStep(3);
-    // clear calendar when leaving montagem
     setMateriasNoCalendario({});
     navegarParaEtapa(ETAPAS.HISTORICO);
   };
@@ -255,23 +222,8 @@ function App() {
   // Handler para toggle de matéria aprovada
   const handleToggleMateriaAprovada = (codigo) => {
     if (materiasAprovadas.includes(codigo)) {
-      // Ao desmarcar, remove também as matérias que dependem dela
-      const materiasParaRemover = new Set([codigo]);
-      const todasMaterias = [...Object.values(materiasPorSemestre).flat(), ...eletivas];
-
-      // Encontra matérias que dependem da que foi desmarcada
-      let tamanhoAnterior = 0;
-      while (materiasParaRemover.size !== tamanhoAnterior) {
-        tamanhoAnterior = materiasParaRemover.size;
-        todasMaterias
-          .filter(m =>
-            materiasAprovadas.includes(m.codigo) &&
-            !materiasParaRemover.has(m.codigo) &&
-            m.preRequisitos.some(pr => materiasParaRemover.has(pr))
-          )
-          .forEach(m => materiasParaRemover.add(m.codigo));
-      }
-
+      // Ao desmarcar, remove também as matérias que dependem dela (forte/mínimo)
+      const materiasParaRemover = getDependentesAprovados(codigo, materiasAprovadas, allMateriasList);
       setMateriasAprovadas(materiasAprovadas.filter(c => !materiasParaRemover.has(c)));
     } else {
       setMateriasAprovadas([...materiasAprovadas, codigo]);
@@ -289,6 +241,11 @@ function App() {
 
     if (!isTurmaSelecionavel(materia)) {
       addToast('Esta turma não possui horário informado.', 'error');
+      return false;
+    }
+
+    if (excedeLimiteCreditos(materiasNoCalendario, materia)) {
+      addToast(`Adicionar esta matéria excederia o limite de ${CREDIT_MAX} créditos.`, 'error');
       return false;
     }
 
@@ -335,7 +292,7 @@ function App() {
   };
 
   const handleRemoveMateria = (codigo) => {
-    // Recursively remove dependents that have the removed subject as a co-requirement
+    // Remove em cascata as matérias que têm a removida como co-requisito
     const toRemove = new Set([codigo]);
     let changed = true;
 
@@ -343,20 +300,15 @@ function App() {
       changed = false;
       for (const [c, m] of Object.entries(materiasNoCalendario)) {
         if (toRemove.has(c)) continue;
-        const coreqList = (m.preRequisitosDetalhada && m.preRequisitosDetalhada.coreq) || [];
-        // Check if any coreq is in toRemove
-        let dependsOn = false;
-        for (const pr of coreqList) {
-          if (toRemove.has(pr)) { dependsOn = true; break; }
-        }
-        if (dependsOn) {
+        const coreqList = m.preRequisitosDetalhada?.coreq || [];
+        if (coreqList.some(pr => toRemove.has(pr))) {
           toRemove.add(c);
           changed = true;
         }
       }
     }
 
-    // Build new calendar state without the removed subjects
+    // Novo estado do calendário sem as matérias removidas
     const novas = { ...materiasNoCalendario };
     const removedDependents = [];
     toRemove.forEach(code => {
@@ -368,10 +320,9 @@ function App() {
 
     setMateriasNoCalendario(novas);
 
-    // Notify user about dependents removed (if any)
-    if (removedDependents.length > 0) {
-      removedDependents.forEach(nome => addToast(`A matéria "${nome}" foi removida porque dependia do co-requisito removido.`, 'error'));
-    }
+    removedDependents.forEach(nome =>
+      addToast(`A matéria "${nome}" foi removida porque dependia do co-requisito removido.`, 'warning')
+    );
   };
 
   // Effect para rolar para o calendário quando muda para a etapa de montagem
@@ -383,19 +334,11 @@ function App() {
     }
   }, [etapa]);
 
-  // Sempre voltar para a tela inicial ao recarregar a página
-  useEffect(() => {
-    try {
-      window.history.replaceState({ etapa: ETAPAS.INICIO }, document.title, window.location.href);
-    } catch (e) {
-      // ignore
-    }
-    setEtapa(ETAPAS.INICIO);
-  }, []);
-
   return (
     <>
-      <Particles />
+      <Suspense fallback={null}>
+        <Particles />
+      </Suspense>
       <div className="app-container">
         <ToastContainer toasts={toasts} removeToast={removeToast} />
         <AboutMe />
@@ -415,7 +358,7 @@ function App() {
               setMatrizSelecionada={setMatrizSelecionada}
               semestreSelecionado={semestreAtual}
               setSemestreSelecionado={setSemestreAtual}
-              onShowToast={(msg, type) => addToast(msg, type)}
+              onShowToast={showToast}
               onComplete={handleSetupComplete}
               initialStep={setupInitialStep}
               onVoltar={handleVoltarParaInicio}
@@ -425,14 +368,11 @@ function App() {
             <Historico
               materiasAprovadas={materiasAprovadas}
               materiasPorSemestre={materiasPorSemestre}
-              eletivas={eletivas}
               onToggleMateria={handleToggleMateriaAprovada}
               onConfirmMinimo={handleConfirmMinimo}
-              onShowToast={(msg, kind) => addToast(msg, kind)}
+              onShowToast={showToast}
               onVoltar={handleVoltarParaSetup}
               onContinuar={handleContinuar}
-              cursoSelecionado={cursoSelecionado}
-              matrizSelecionada={matrizSelecionada}
               semestreAtual={semestreAtual}
             />
           )}
@@ -445,13 +385,11 @@ function App() {
               onAddMateria={handleAddMateria}
               onRemoveMateria={handleRemoveMateria}
               onVoltar={handleVoltarParaHistorico}
-              onContinuar={handleContinuar}
-              cursoSelecionado={cursoSelecionado}
-              matrizSelecionada={matrizSelecionada}
+              onShowToast={showToast}
               semestreAtual={semestreAtual}
-             materiasMinimoConfirmadas={minimoConfirmados}
-             onConfirmMinimo={handleConfirmMinimo}
-             onMateriaClick={(m) => setModalMateria(m)}
+              materiasMinimoConfirmadas={minimoConfirmados}
+              onConfirmMinimo={handleConfirmMinimo}
+              onMateriaClick={setModalMateria}
             />
           )}
         </div>
@@ -459,16 +397,13 @@ function App() {
           <MateriaModal
             materia={modalMateria}
             onClose={() => setModalMateria(null)}
-            onSave={(novaMateria) => {
-              // Add the turma to calendar but do NOT show toast here (modal actions are silent)
-              handleAddMateria(novaMateria);
-             }}
+            onSave={handleAddMateria}
             onRemove={handleRemoveMateria}
             materiasAprovadas={materiasAprovadas}
             materiasNoCalendario={materiasNoCalendario}
             materiasMinimoConfirmadas={minimoConfirmados}
             allMateriasList={allMateriasList}
-            onShowToast={(msg, type) => addToast(msg, type)}
+            onShowToast={showToast}
           />
         )}
       </div>

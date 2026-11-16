@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { getNomeMateria } from '../../data';
+import { getNomeMateriaOuCodigo } from '../../data';
 import { getPendenciasCorequisitosCalendario } from '../../domain/gradeRules';
 
 const EXPORT_WIDTH = 1200;
@@ -29,9 +29,7 @@ export default function useCalendarExport({
       materiasMinimoConfirmadas
     );
     if (pendencias.length > 0) {
-      const nomes = [...new Set(pendencias.map(({ coreqCodigo }) =>
-        getNomeMateria(coreqCodigo) || coreqCodigo
-      ))];
+      const nomes = [...new Set(pendencias.map(({ coreqCodigo }) => getNomeMateriaOuCodigo(coreqCodigo)))];
       triggerToast(
         `Adicione os correquisitos pendentes antes de baixar a grade: ${nomes.join(', ')}.`,
         'error'

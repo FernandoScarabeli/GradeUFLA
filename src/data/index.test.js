@@ -82,7 +82,8 @@ describe('carregamento central dos CSVs', () => {
 
     await expect(retryCsvLoad()).resolves.toMatchObject({ cursos });
     expect(getCsvLoadState()).toMatchObject({ status: 'success', error: null });
+    // Cursos e matérias são carregados em paralelo, então ambos rodam nas duas tentativas
     expect(loadCursos).toHaveBeenCalledTimes(2);
-    expect(loadMaterias).toHaveBeenCalledTimes(1);
+    expect(loadMaterias).toHaveBeenCalledTimes(2);
   });
 });

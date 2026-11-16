@@ -1,6 +1,7 @@
 import {
   ANP_START_HOUR,
   CREDIT_MAX,
+  DIAS_SEMANA,
   findNextAnpHour,
   isAnpTurma,
   normalizarDia,
@@ -8,11 +9,11 @@ import {
   SATURDAY_INDEX
 } from '../../domain/gradeRules';
 
-export const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 export const CREDIT_WARN = 25;
 export {
   ANP_START_HOUR,
   CREDIT_MAX,
+  DIAS_SEMANA,
   findNextAnpHour,
   isAnpTurma,
   SATURDAY_INDEX

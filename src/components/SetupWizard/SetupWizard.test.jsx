@@ -16,6 +16,7 @@ vi.mock('../../data', () => ({
   retryCsvLoad: vi.fn().mockResolvedValue({}),
   getCsvLoadState: vi.fn(() => ({ status: 'error', error: new Error('CSV inválido') })),
   subscribeCsvLoadState: vi.fn(() => () => {}),
+  useCsvLoadState: () => ({ status: 'error', error: new Error('CSV inválido') }),
   getCursoInfo: vi.fn(() => null),
   getTotalSemestres: vi.fn(() => 8),
   getMatrizesByCurso: vi.fn(() => []),

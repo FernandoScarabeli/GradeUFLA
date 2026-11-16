@@ -1,6 +1,9 @@
 import {
   calcularTotalAposSelecao,
+  excedeLimiteCreditos,
   findNextAnpHour,
+  getDependentesAprovados,
+  getPendenciasPrerequisito,
   getPendenciasCorequisitosCalendario,
   horariosConflitam,
   isAnpOnly,
@@ -160,5 +163,54 @@ describe('regras da grade', () => {
       GCC001: materia,
       GCC002: { codigo: 'GCC002' }
     })).toEqual([]);
+  });
+
+  test('desmarcar uma matéria remove em cascata apenas dependentes por forte/mínimo', () => {
+    const materias = [
+      { codigo: 'GQI101', preRequisitosDetalhada: { forte: [], minimo: [], coreq: [] } },
+      { codigo: 'GQI170', preRequisitosDetalhada: { forte: ['GQI101'], minimo: [], coreq: ['GQI171'] } },
+      { codigo: 'GQI171', preRequisitosDetalhada: { forte: ['GQI101'], minimo: [], coreq: ['GQI170'] } },
+      { codigo: 'GQI200', preRequisitosDetalhada: { forte: [], minimo: ['GQI170'], coreq: [] } }
+    ];
+    const aprovadas = ['GQI101', 'GQI170', 'GQI171', 'GQI200'];
+
+    // Co-requisito não propaga: GQI171 continua aprovada
+    expect([...getDependentesAprovados('GQI170', aprovadas, materias)].sort())
+      .toEqual(['GQI170', 'GQI200']);
+    // Forte propaga em cadeia
+    expect([...getDependentesAprovados('GQI101', aprovadas, materias)].sort())
+      .toEqual(['GQI101', 'GQI170', 'GQI171', 'GQI200']);
+  });
+
+  test('pendências de pré-requisito descontam as confirmações manuais', () => {
+    const materia = {
+      codigo: 'GCC010',
+      preRequisitosDetalhada: { forte: ['GCC001'], minimo: ['GCC002'], coreq: ['GCC003'] }
+    };
+
+    const semConfirmacao = getPendenciasPrerequisito(materia);
+    expect(semConfirmacao).toMatchObject({
+      faltandoForte: ['GCC001'],
+      faltandoMinimo: ['GCC002'],
+      faltandoCoreq: ['GCC003'],
+      podeAdicionar: false,
+      todosCumpridos: false
+    });
+
+    const confirmado = getPendenciasPrerequisito(materia, {
+      materiasAprovadas: ['GCC001'],
+      prerequisitosConfirmados: ['GCC002'],
+      materiasNoCalendario: { GCC003: { codigo: 'GCC003' } }
+    });
+    expect(confirmado).toMatchObject({ podeAdicionar: true, todosCumpridos: true });
+  });
+
+  test('limite de créditos considera a troca de turma da mesma matéria', () => {
+    const grade = {
+      GCC001: { codigo: 'GCC001', creditos: 4 },
+      GCC002: { codigo: 'GCC002', creditos: 28 }
+    };
+    expect(excedeLimiteCreditos(grade, { codigo: 'GCC001', creditos: 4 })).toBe(false);
+    expect(excedeLimiteCreditos(grade, { codigo: 'GCC003', creditos: 2 })).toBe(true);
   });
 });

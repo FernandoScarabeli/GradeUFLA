@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { verificarPreRequisitosDetalhada } from '../../data';
-import {
-  calcularTotalAposSelecao,
-  calcularTotalCreditos,
-  CREDIT_MAX,
-  verificarConflitoMateria
-} from '../../domain/gradeRules';
+import { getPendenciasPrerequisito } from '../../data';
+import { verificarConflitoMateria } from '../../domain/gradeRules';
 import {
   DIAS_SEMANA,
   SATURDAY_INDEX,
@@ -224,21 +219,13 @@ export default function useCalendarDrag({
       return;
     }
 
-    const calendarioComMateria = { ...materiasNoCalendario, [materia.codigo]: materia };
-    const detalhes = verificarPreRequisitosDetalhada(
-      materia,
+    const { podeAdicionar } = getPendenciasPrerequisito(materia, {
       materiasAprovadas,
-      calendarioComMateria,
+      materiasNoCalendario,
+      prerequisitosConfirmados: materiasMinimoConfirmadas,
       allMateriasList
-    );
-    const removerConfirmados = codigos => (codigos || []).filter(
-      codigo => !materiasMinimoConfirmadas.includes(codigo)
-    );
-    if (removerConfirmados(detalhes.faltandoForte).length > 0
-      || removerConfirmados(detalhes.faltandoMinimo).length > 0
-      || materiasNoCalendario[materia.codigo]) {
-      return;
-    }
+    });
+    if (!podeAdicionar || materiasNoCalendario[materia.codigo]) return;
 
     event.preventDefault();
     const { x, y } = getPointerPosition(event);
@@ -299,7 +286,9 @@ export default function useCalendarDrag({
         triggerToast(`Conflito de horário com ${conflito.materiaConflito || conflito.mensagem}!`, 'error');
         return;
       }
-      onRemoveMateria(draggingMateria.codigo);
+      // Troca de turma: o App substitui a entrada pelo código. Não remover antes,
+      // pois a remoção apagaria em cascata os co-requisitos já na grade e, se a
+      // nova turma fosse recusada, a matéria sumiria do calendário.
       addTurma(materiaCompleta, turma);
     } catch (error) {
       triggerToast('Erro ao realocar matéria', 'error');
@@ -337,15 +326,8 @@ export default function useCalendarDrag({
       return;
     }
 
-    const totalAtual = calcularTotalCreditos(materiasNoCalendario);
-    const novoTotal = calcularTotalAposSelecao(materiasNoCalendario, draggingMateria);
-    if (totalAtual >= CREDIT_MAX) {
-      triggerToast(`Limite de créditos atingido (${CREDIT_MAX}). Remova matérias para adicionar mais.`, 'error');
-    } else if (novoTotal > CREDIT_MAX) {
-      triggerToast('Adicionar esta matéria excederia o limite de 32 créditos.', 'error');
-    } else if (!addTurma(draggingMateria, turma)) {
-      triggerToast('Não foi possível adicionar a matéria.', 'error');
-    }
+    // Limite de créditos, conflitos e ANP são validados (com mensagem) no App.
+    addTurma(draggingMateria, turma);
   };
 
   const handleMouseUp = event => {
