@@ -39,7 +39,7 @@ Também funciona só com o teclado, tem diálogos acessíveis e respeita a prefe
 
 O GradeUFLA é um app **React 19 + Vite** sem backend: cursos, disciplinas, pré-requisitos e turmas vêm de arquivos CSV publicados junto com o site.
 
-**Requisitos:** Node.js `20.19+` ou `22.12+`.
+**Requisitos:** Node.js `22.12+` (o CI e o site usam o Node 24, definido em `.nvmrc`).
 
 ```bash
 npm ci
