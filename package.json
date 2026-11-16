@@ -2,7 +2,16 @@
   "name": "gradeufla",
   "version": "0.1.0",
   "private": true,
-  "description": "GradeUFLA - Montador de grade horária para UFLA",
+  "description": "Montador de grade horária para estudantes da UFLA",
+  "homepage": "https://gradeufla.com.br",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FernandoScarabeli/GradeUFLA.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "dependencies": {
     "@flaticon/flaticon-uicons": "^3.3.1",
     "html2canvas": "^1.4.1",

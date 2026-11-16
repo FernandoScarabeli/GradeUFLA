@@ -1,58 +1,87 @@
-# GradeUFLA — Montador de Grade Horária
+<p align="center">
+  <img src="public/calendarioLogo.png" alt="Logo do GradeUFLA" width="96" />
+</p>
 
-Frontend do GradeUFLA para selecionar curso, matriz e semestre, revisar o histórico acadêmico e montar uma grade sem conflitos de horário. A aplicação funciona sem backend: cursos, disciplinas, pré-requisitos e turmas são carregados de CSVs versionados no próprio deploy.
+<h1 align="center">GradeUFLA</h1>
 
-## Funcionalidades
+<p align="center">
+  Monte sua grade horária da UFLA sem conflitos, respeitando pré-requisitos e o limite de créditos.
+  <br />
+  <a href="https://gradeufla.com.br"><strong>gradeufla.com.br</strong></a>
+</p>
 
-- fluxo guiado de curso, matriz e semestre;
-- histórico de disciplinas aprovadas;
-- montagem por drag and drop no desktop e por modal no mobile;
-- validação de pré-requisitos, correquisitos, conflitos, ANP e limite de 32 créditos;
-- filtros por dia, horário, modalidade e créditos;
-- exportação da grade em PNG;
-- navegação por teclado, dialogs acessíveis e suporte a reduced motion.
+---
 
-## Requisitos
+## Como funciona
 
-- Node.js `20.19.0` ou superior dentro da linha 20, ou Node `22.12.0+`;
-- npm compatível com a versão instalada do Node.
+1. Escolha seu **curso**, a **matriz curricular** e o **semestre** em que você está.
+2. Revise o **histórico**: as matérias dos semestres anteriores já vêm marcadas, então é só desmarcar as que você ainda não fez.
+3. **Monte a grade** arrastando as matérias para o calendário (no celular, toque na matéria e escolha a turma).
+4. **Baixe a grade** em PNG.
 
-O projeto usa React 19, Vite 8, Vitest 4 e Playwright.
+Durante a montagem o GradeUFLA:
+
+- bloqueia matérias com **pré-requisito forte** pendente e pede confirmação para **pré-requisito mínimo**;
+- avisa sobre **co-requisitos** que precisam ser cursados junto;
+- impede **conflitos de horário** e a inclusão acima de **32 créditos**;
+- distribui turmas **ANP** nos horários livres de sábado;
+- filtra matérias por dia, horário, modalidade e créditos;
+- inclui matérias **pendentes**, **eletivas** e **futuras**.
+
+Também funciona só com o teclado, tem diálogos acessíveis e respeita a preferência do sistema por menos animações.
+
+> Os dados são públicos, extraídos do SIG/UFLA, e podem ficar desatualizados entre uma atualização e outra.
+> Confira sempre as turmas no sistema oficial antes da matrícula.
+
+---
 
 ## Desenvolvimento
 
+O GradeUFLA é um app **React 19 + Vite** sem backend: cursos, disciplinas, pré-requisitos e turmas vêm de arquivos CSV publicados junto com o site.
+
+**Requisitos:** Node.js `20.19+` ou `22.12+`.
+
 ```bash
 npm ci
-npm start
+npm start          # http://127.0.0.1:3000
 ```
 
-O servidor abre em `http://127.0.0.1:3000`.
+| Comando | O que faz |
+| --- | --- |
+| `npm start` | Servidor de desenvolvimento |
+| `npm run build` | Build de produção em `dist/` |
+| `npm run preview` | Serve o build localmente |
+| `npm run lint` | ESLint |
+| `npm test` | Vitest em modo watch |
+| `npm run test:ci` | Vitest em execução única |
+| `npm run e2e:install` | Instala o Chromium do Playwright (uma vez) |
+| `npm run e2e` | Testes end-to-end (desktop e mobile) |
 
-Scripts disponíveis:
+O GitHub Actions roda lint, testes, build e E2E em todo push na `main` e em pull requests.
 
-```bash
-npm start          # servidor Vite
-npm run build      # build de produção em dist/
-npm run preview    # serve o build localmente
-npm run lint       # ESLint
-npm test           # Vitest em watch mode
-npm run test:ci    # Vitest em execução única
-npm run e2e        # Playwright desktop e mobile
-npm run e2e:install
+### Estrutura
+
+```text
+src/
+├── App.jsx               fluxo das etapas e estado principal
+├── domain/gradeRules.js  regras acadêmicas (pré-requisitos, conflitos, créditos, ANP)
+├── data/                 carregamento, validação e indexação dos CSVs
+├── components/           interface (Setup, Histórico, Calendário, modais...)
+├── hooks/                hooks compartilhados
+└── config/               período letivo e data de atualização dos dados
+public/data/              CSVs publicados com o site
+e2e/                      testes Playwright e CSVs de fixture
 ```
+
+As regras acadêmicas ficam todas em `src/domain/gradeRules.js`, e os componentes só as consomem. Se uma regra mudar, é lá que ela deve ser alterada (e testada em `gradeRules.test.js`).
+
+---
 
 ## Dados acadêmicos
 
-Os arquivos consumidos em produção ficam em:
-
-```text
-public/data/courses.csv
-public/data/subjects.csv
-```
+Os dados ficam em `public/data/courses.csv` e `public/data/subjects.csv`. Eles são gerados por um scraper do SIG/UFLA mantido fora deste repositório.
 
 ### `courses.csv`
-
-Colunas obrigatórias:
 
 | Coluna | Descrição | Exemplo |
 | --- | --- | --- |
@@ -60,93 +89,48 @@ Colunas obrigatórias:
 | `nome` | Nome do curso | `Sistemas de Informação` |
 | `matriz` | Ano e período da matriz | `2023/01` |
 
-O mesmo curso pode aparecer uma vez para cada matriz disponível.
+Cada curso aparece uma vez para cada matriz disponível.
 
 ### `subjects.csv`
 
-Colunas principais:
-
 | Coluna | Descrição |
 | --- | --- |
-| `curso` | Identificador correspondente ao curso |
+| `curso` | Identificador do curso |
 | `matriz` | Matriz curricular |
 | `semestre` | Módulo recomendado |
-| `codigo` | Código único da disciplina |
+| `codigo` | Código da disciplina |
 | `nome` | Nome da disciplina |
 | `creditos` | Quantidade de créditos |
 | `tipo` | `obrigatoria` ou `eletiva` |
 | `subgrupo` | Agrupamento opcional de eletivas |
-| `preRequisitos` | Texto com grupos `Forte`, `Minimo` e `Co-requisito` |
-| `turmas` | Array JSON com `id`, `horarios` e flag `anp` |
-
-Exemplo simplificado de `turmas`:
+| `preRequisitos` | Ex.: `Forte: GCC101; Minimo: GMM116; Corequisito: GQI171` |
+| `turmas` | Array JSON de turmas (veja abaixo) |
 
 ```json
 [
   {
-    "id": "A",
+    "id": "10A",
     "horarios": [{ "dia": 2, "inicio": 8, "fim": 10 }],
     "anp": false
   }
 ]
 ```
 
-O loader rejeita respostas HTTP inválidas, erros do PapaParse, campos obrigatórios ausentes e JSON inválido em `turmas`.
+`dia` segue a convenção do SIG (`1` = domingo, `2` = segunda ... `7` = sábado), e `inicio`/`fim` são horas cheias. O carregador rejeita CSVs malformados, campos obrigatórios vazios e JSON inválido em `turmas`, e o erro aparece na tela inicial com opção de tentar de novo.
 
-## Versão dos dados
+### Atualizando os dados
 
-As configurações públicas estão documentadas em `.env.example`:
+1. Substitua o CSV em `public/data/`.
+2. Atualize os valores em `.env.example` e os padrões em `src/config/academicTerm.js` e `src/data/csvLoader.js`:
+   - `VITE_CSV_VERSION`: a data da nova versão, para os navegadores não usarem o CSV antigo em cache;
+   - `VITE_DATA_UPDATED_AT`: a data exibida no rodapé;
+   - `VITE_ACADEMIC_TERM`: o período letivo, quando mudar.
+3. Rode `npm run test:ci` e abra o app para conferir.
 
-```text
-VITE_CSV_VERSION=2026-07-18
-VITE_DATA_UPDATED_AT="22/07/26 - 11:00"
-VITE_ACADEMIC_TERM=2026/1
-```
+Variáveis `VITE_*` ficam públicas no bundle. Nunca coloque segredos nelas.
 
-Ao publicar um CSV novo:
+---
 
-1. substitua somente o arquivo correspondente em `public/data`;
-2. atualize `VITE_CSV_VERSION` para invalidar caches antigos;
-3. atualize `VITE_DATA_UPDATED_AT` e, quando necessário, `VITE_ACADEMIC_TERM`;
-4. execute os testes e faça um recarregamento forçado no navegador.
+## Licença
 
-Variáveis prefixadas com `VITE_` são públicas e não devem conter segredos.
-
-## Validação
-
-```bash
-npm run lint
-npm run test:ci
-npm run build
-npm run e2e
-npm audit
-```
-
-A cobertura inclui regras acadêmicas, carregamento e retry dos CSVs, fluxo completo do App, dialogs, drag, exportação PNG e E2E em Chromium desktop `1440x1000` e mobile `390x844`.
-
-## Deploy no Netlify
-
-O arquivo `netlify.toml` configura:
-
-- comando `npm run build`;
-- publicação do diretório `dist`;
-- fallback de SPA para `index.html`;
-- headers de segurança;
-- cache longo para assets com hash e cache controlado para CSVs.
-
-O deploy não depende de `CI=false`. Pull requests e pushes na `main` também executam lint, Vitest, build e Playwright por GitHub Actions.
-
-## Estrutura
-
-```text
-src/App.jsx                 fluxo e estado principal
-src/components/             interface e interações
-src/data/                   carregamento e indexação dos CSVs
-src/domain/gradeRules.js    fonte única das regras acadêmicas
-src/hooks/                  hooks compartilhados
-e2e/                       testes Playwright e fixtures
-public/data/                dados acadêmicos publicados
-docs/                       especificações e plano de revisão
-```
-
-O scraper pertence a outro projeto e não deve ser executado a partir deste repositório.
+[MIT](LICENSE) © Fernando Scarabeli
