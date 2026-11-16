@@ -313,3 +313,22 @@ export function getDependentesAprovados(codigo, materiasAprovadas = [], materias
   }
   return remover;
 }
+
+/** Códigos que saem da grade junto com `codigo`: ele próprio e, em cascata,
+ * as matérias que o têm como co-requisito. */
+export function getDependentesCorequisito(codigo, materiasNoCalendario = {}) {
+  const remover = new Set([codigo]);
+  let mudou = true;
+  while (mudou) {
+    mudou = false;
+    for (const [outro, materia] of Object.entries(materiasNoCalendario || {})) {
+      if (remover.has(outro)) continue;
+      const coreqs = materia?.preRequisitosDetalhada?.coreq || [];
+      if (coreqs.some(requisito => remover.has(requisito))) {
+        remover.add(outro);
+        mudou = true;
+      }
+    }
+  }
+  return remover;
+}
