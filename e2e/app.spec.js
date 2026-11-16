@@ -55,7 +55,8 @@ async function addSubject(page, name, turma) {
 }
 
 test.describe('fluxos críticos com dados controlados', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, isMobile }) => {
+    test.skip(isMobile, 'O celular usa o fluxo próprio, coberto em mobile.spec.js.');
     await completeFlow(page);
   });
 
@@ -92,9 +93,7 @@ test.describe('fluxos críticos com dados controlados', () => {
     await expect(page.locator('.calendar__credits')).toContainText('32');
   });
 
-  test('mantém o card visível acompanhando o ponteiro durante o drag', async ({ page, isMobile }) => {
-    test.skip(isMobile, 'O fluxo mobile adiciona a disciplina pelo modal, sem drag.');
-
+  test('mantém o card visível acompanhando o ponteiro durante o drag', async ({ page }) => {
     const card = page.locator('.materia-card', { hasText: 'Programação Web' });
     const cardBox = await card.boundingBox();
     expect(cardBox).not.toBeNull();
@@ -123,7 +122,8 @@ test.describe('fluxos críticos com dados controlados', () => {
   });
 });
 
-test('permite concluir o fluxo principal somente com teclado', async ({ page }) => {
+test('permite concluir o fluxo principal somente com teclado', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'O celular usa o fluxo próprio, coberto em mobile.spec.js.');
   await useAcademicFixtures(page);
   await page.goto('/');
 
@@ -160,7 +160,8 @@ test('permite concluir o fluxo principal somente com teclado', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'Minha Grade - 2º Semestre' })).toBeVisible();
 });
 
-test('carrega o fluxo real de Sistemas de Informação 2023', async ({ page }) => {
+test('carrega o fluxo real de Sistemas de Informação 2023', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'O celular usa o fluxo próprio, coberto em mobile.spec.js.');
   test.slow();
   await completeFlow(page, { useFixtures: false, semester: '1º Módulo' });
   await expect(page.getByText('Matérias Disponíveis')).toBeVisible();
