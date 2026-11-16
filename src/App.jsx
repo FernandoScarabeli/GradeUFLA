@@ -11,6 +11,8 @@ import {
   AboutMe,
   SetupWizard
 } from './components';
+import { MobileGrade, MobileHistorico, MobileSetup, MobileShell } from './components/Mobile';
+import useIsMobileFlow from './hooks/useIsMobileFlow';
 
 // Data
 import {
@@ -26,6 +28,7 @@ import {
   excedeLimiteCreditos,
   findNextAnpHour,
   getDependentesAprovados,
+  getDependentesCorequisito,
   isAnpTurma,
   isTurmaSelecionavel,
   normalizarDia,
@@ -81,6 +84,9 @@ function App() {
   const [materiasNoCalendario, setMateriasNoCalendario] = useState({});
   const [modalMateria, setModalMateria] = useState(null);
   const csvLoadState = useCsvLoadState();
+  // No celular, setup, histórico e grade usam o fluxo próprio (a tela inicial é a mesma).
+  const isMobile = useIsMobileFlow();
+  const fluxoMobile = isMobile && etapa !== ETAPAS.INICIO;
   const [setupInitialStep, setSetupInitialStep] = useState(1);
 
   // Hook de toast para notificações
@@ -193,7 +199,8 @@ function App() {
     setMinimoConfirmados([]);
     setMateriasNoCalendario({});
 
-    navegarParaEtapa(ETAPAS.HISTORICO);
+    // No celular, quem está no 1º semestre não tem histórico para marcar.
+    navegarParaEtapa(isMobile && semestre === 1 ? ETAPAS.MONTAGEM : ETAPAS.HISTORICO);
   };
 
   const handleVoltarParaInicio = () => {
@@ -209,6 +216,10 @@ function App() {
   };
 
   const handleVoltarParaHistorico = () => {
+    if (isMobile && semestreAtual === 1) {
+      handleVoltarParaSetup();
+      return;
+    }
     // Um retorno posterior ao setup deve abrir na etapa de semestre
     setSetupInitialStep(3);
     setMateriasNoCalendario({});
@@ -291,24 +302,10 @@ function App() {
     return true;
   };
 
-  const handleRemoveMateria = (codigo) => {
+  const handleRemoveMateria = (codigo, { silencioso = false } = {}) => {
     // Remove em cascata as matérias que têm a removida como co-requisito
-    const toRemove = new Set([codigo]);
-    let changed = true;
+    const toRemove = getDependentesCorequisito(codigo, materiasNoCalendario);
 
-    while (changed) {
-      changed = false;
-      for (const [c, m] of Object.entries(materiasNoCalendario)) {
-        if (toRemove.has(c)) continue;
-        const coreqList = m.preRequisitosDetalhada?.coreq || [];
-        if (coreqList.some(pr => toRemove.has(pr))) {
-          toRemove.add(c);
-          changed = true;
-        }
-      }
-    }
-
-    // Novo estado do calendário sem as matérias removidas
     const novas = { ...materiasNoCalendario };
     const removedDependents = [];
     toRemove.forEach(code => {
@@ -320,9 +317,15 @@ function App() {
 
     setMateriasNoCalendario(novas);
 
+    if (silencioso) return;
     removedDependents.forEach(nome =>
       addToast(`A matéria "${nome}" foi removida porque dependia do co-requisito removido.`, 'warning')
     );
+  };
+
+  // Usado pelo "Desfazer" do fluxo mobile: volta a grade para um estado anterior.
+  const handleRestaurarCalendario = (snapshot) => {
+    setMateriasNoCalendario(snapshot || {});
   };
 
   // Effect para rolar para o calendário quando muda para a etapa de montagem
@@ -336,13 +339,61 @@ function App() {
 
   return (
     <>
-      <Suspense fallback={null}>
-        <Particles />
-      </Suspense>
+      {!fluxoMobile && (
+        <Suspense fallback={null}>
+          <Particles />
+        </Suspense>
+      )}
       <div className="app-container">
         <ToastContainer toasts={toasts} removeToast={removeToast} />
-        <AboutMe />
-        <div className="calendario-container" ref={calendarioRef}>
+        {!fluxoMobile && <AboutMe />}
+        {fluxoMobile && (
+          <MobileShell>
+            {etapa === ETAPAS.SETUP && (
+              <MobileSetup
+                initialStep={setupInitialStep}
+                cursoSelecionado={cursoSelecionado}
+                setCursoSelecionado={setCursoSelecionado}
+                matrizSelecionada={matrizSelecionada}
+                setMatrizSelecionada={setMatrizSelecionada}
+                semestreSelecionado={semestreAtual}
+                setSemestreSelecionado={setSemestreAtual}
+                onComplete={handleSetupComplete}
+                onVoltar={handleVoltarParaInicio}
+              />
+            )}
+            {etapa === ETAPAS.HISTORICO && (
+              <MobileHistorico
+                cursoSelecionado={cursoSelecionado}
+                matrizSelecionada={matrizSelecionada}
+                semestreAtual={semestreAtual}
+                materiasAprovadas={materiasAprovadas}
+                materiasPorSemestre={materiasPorSemestre}
+                onToggleMateria={handleToggleMateriaAprovada}
+                onConfirmMinimo={handleConfirmMinimo}
+                onVoltar={handleVoltarParaSetup}
+                onContinuar={handleContinuar}
+              />
+            )}
+            {etapa === ETAPAS.MONTAGEM && (
+              <MobileGrade
+                cursoSelecionado={cursoSelecionado}
+                semestreAtual={semestreAtual}
+                materiasPorSemestre={materiasPorSemestre}
+                eletivas={eletivas}
+                materiasAprovadas={materiasAprovadas}
+                materiasNoCalendario={materiasNoCalendario}
+                minimoConfirmados={minimoConfirmados}
+                onAddMateria={handleAddMateria}
+                onRemoveMateria={handleRemoveMateria}
+                onRestaurar={handleRestaurarCalendario}
+                onConfirmMinimo={handleConfirmMinimo}
+                onVoltar={handleVoltarParaHistorico}
+              />
+            )}
+          </MobileShell>
+        )}
+        <div className="calendario-container" ref={calendarioRef} hidden={fluxoMobile}>
           {etapa === ETAPAS.INICIO && (
             <Hero
               onGetStartedClick={handleGetStartedClick}
@@ -350,7 +401,7 @@ function App() {
               onRetryCsv={handleRetryCsv}
             />
           )}
-          {etapa === ETAPAS.SETUP && (
+          {!fluxoMobile && etapa === ETAPAS.SETUP && (
             <SetupWizard
               cursoSelecionado={cursoSelecionado}
               setCursoSelecionado={setCursoSelecionado}
@@ -364,7 +415,7 @@ function App() {
               onVoltar={handleVoltarParaInicio}
             />
           )}
-          {etapa === ETAPAS.HISTORICO && (
+          {!fluxoMobile && etapa === ETAPAS.HISTORICO && (
             <Historico
               materiasAprovadas={materiasAprovadas}
               materiasPorSemestre={materiasPorSemestre}
@@ -376,7 +427,7 @@ function App() {
               semestreAtual={semestreAtual}
             />
           )}
-          {etapa === ETAPAS.MONTAGEM && (
+          {!fluxoMobile && etapa === ETAPAS.MONTAGEM && (
             <Calendar
               materiasPorSemestre={materiasPorSemestre}
               eletivas={eletivas}
