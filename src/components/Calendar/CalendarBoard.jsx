@@ -196,6 +196,8 @@ function CalendarBoard({
   tableRef,
   semestreAtual,
   onDownload,
+  onExportGoogle = null,
+  exportandoGoogle = false,
   isDragging,
   draggingMateria,
   selectedTurmaIndex,
@@ -216,15 +218,31 @@ function CalendarBoard({
     <div className="calendar__wrapper" ref={wrapperRef}>
       <div className="calendar__title-container">
         <h2 className="calendar__title">Minha Grade - {semestreAtual}º Semestre</h2>
-        <button
-          className="calendar__download"
-          onClick={onDownload}
-          title="Baixar PNG da grade"
-          aria-label="Baixar PNG da grade"
-          type="button"
-        >
-          <i className="fi fi-br-download" aria-hidden="true" />
-        </button>
+        <div className="calendar__actions">
+          {onExportGoogle && (
+            <button
+              className="calendar__download-like calendar__gcal"
+              onClick={onExportGoogle}
+              disabled={exportandoGoogle}
+              aria-busy={exportandoGoogle}
+              title="Exportar pro Google Agenda"
+              aria-label="Exportar pro Google Agenda"
+              type="button"
+            >
+              <i className="fi fi-br-calendar-arrow-up" aria-hidden="true" />
+              <span>{exportandoGoogle ? 'Exportando…' : 'Google Agenda'}</span>
+            </button>
+          )}
+          <button
+            className="calendar__download"
+            onClick={onDownload}
+            title="Baixar PNG da grade"
+            aria-label="Baixar PNG da grade"
+            type="button"
+          >
+            <i className="fi fi-br-download" aria-hidden="true" />
+          </button>
+        </div>
         {isDragging && (
           <TurmasPopup
             materia={draggingMateria}

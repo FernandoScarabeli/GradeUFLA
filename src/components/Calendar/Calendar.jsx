@@ -4,8 +4,10 @@ import { calcularTotalCreditos } from '../../domain/gradeRules';
 import CalendarBoard from './CalendarBoard';
 import CalendarSidebar from './CalendarSidebar';
 import PrerequisiteModal from '../Modal/PrerequisiteModal';
+import GoogleExportModal from '../GoogleExport/GoogleExportModal';
 import useCalendarDrag from './useCalendarDrag';
 import useCalendarExport from './useCalendarExport';
+import useGoogleCalendarExport from '../../hooks/useGoogleCalendarExport';
 import {
   gerarHorarios,
   getCorMateria as calcularCorMateria,
@@ -115,6 +117,13 @@ const Calendar = forwardRef(({
     triggerToast
   });
 
+  const googleExport = useGoogleCalendarExport({
+    materiasNoCalendario,
+    materiasAprovadas,
+    materiasMinimoConfirmadas,
+    notificar: triggerToast
+  });
+
   const openForteConfirm = (prereqs, parent) => {
     setMinimoModal({
       open: true,
@@ -209,6 +218,8 @@ const Calendar = forwardRef(({
           tableRef={calendarTableRef}
           semestreAtual={semestreAtual}
           onDownload={handleDownloadPNG}
+          onExportGoogle={googleExport.disponivel ? googleExport.abrir : null}
+          exportandoGoogle={googleExport.exportando}
           isDragging={isDragging}
           draggingMateria={draggingMateria}
           selectedTurmaIndex={selectedTurmaIndex}
@@ -244,6 +255,8 @@ const Calendar = forwardRef(({
         onClose={closeMinimoConfirm}
         onConfirm={confirmMinimo}
       />
+
+      <GoogleExportModal exportacao={googleExport} />
     </section>
   );
 });
