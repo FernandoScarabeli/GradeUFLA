@@ -3,6 +3,7 @@ import {
   excedeLimiteCreditos,
   findNextAnpHour,
   getDependentesAprovados,
+  getDependentesCorequisito,
   getPendenciasPrerequisito,
   getPendenciasCorequisitosCalendario,
   horariosConflitam,
@@ -212,5 +213,20 @@ describe('regras da grade', () => {
     };
     expect(excedeLimiteCreditos(grade, { codigo: 'GCC001', creditos: 4 })).toBe(false);
     expect(excedeLimiteCreditos(grade, { codigo: 'GCC003', creditos: 2 })).toBe(true);
+  });
+});
+
+describe('getDependentesCorequisito', () => {
+  const comCoreq = (codigo, coreq = []) => ({ codigo, preRequisitosDetalhada: { forte: [], minimo: [], coreq } });
+
+  test('inclui a própria matéria e quem a tem como co-requisito, em cascata', () => {
+    const calendario = {
+      A: comCoreq('A'),
+      B: comCoreq('B', ['A']),
+      C: comCoreq('C', ['B']),
+      D: comCoreq('D')
+    };
+    expect([...getDependentesCorequisito('A', calendario)].sort()).toEqual(['A', 'B', 'C']);
+    expect([...getDependentesCorequisito('D', calendario)]).toEqual(['D']);
   });
 });

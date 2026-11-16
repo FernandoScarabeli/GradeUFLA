@@ -19,7 +19,9 @@ span[class*=" fi-br-"]::before {
 }
 
 .fi-br-angle-down::before { content: "\f150"; }
+.fi-br-angle-left::before { content: "\f151"; }
 .fi-br-angle-right::before { content: "\f152"; }
+.fi-br-angle-small-down::before { content: "\f153"; }
 .fi-br-angle-up::before { content: "\f15b"; }
 .fi-br-arrow-left::before { content: "\f197"; }
 .fi-br-arrow-right::before { content: "\f19b"; }
@@ -29,13 +31,15 @@ span[class*=" fi-br-"]::before {
 .fi-br-bullseye-pointer::before { content: "\f308"; }
 .fi-br-check-circle::before { content: "\f3c5"; }
 .fi-br-check::before { content: "\f3c9"; }
-.fi-br-cross::before { content: "\f4fa"; }
 .fi-br-cross-circle::before { content: "\f4f7"; }
 .fi-br-cross-small::before { content: "\f4f9"; }
-.fi-br-info::before { content: "\f813"; }
+.fi-br-cross::before { content: "\f4fa"; }
 .fi-br-download::before { content: "\f594"; }
+.fi-br-exchange::before { content: "\f5ed"; }
+.fi-br-info::before { content: "\f813"; }
 .fi-br-lock::before { content: "\f8dd"; }
 .fi-br-menu-dots-vertical::before { content: "\f92c"; }
+.fi-br-plus::before { content: "\fab1"; }
 .fi-br-rocket::before { content: "\fb69"; }
 .fi-br-search-alt::before { content: "\fbbc"; }
 .fi-br-search::before { content: "\fbc0"; }
