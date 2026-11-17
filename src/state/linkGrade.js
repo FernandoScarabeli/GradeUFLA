@@ -134,14 +134,6 @@ export function extrairToken(hash) {
   return match ? match[1] : null;
 }
 
-/** Aceita o link inteiro colado ou só o token. */
-export function extrairTokenDeTexto(texto) {
-  const limpo = String(texto ?? '').trim();
-  const indice = limpo.indexOf('#g=');
-  if (indice !== -1) return extrairToken(limpo.slice(indice));
-  return /^[jz][A-Za-z0-9_-]+$/.test(limpo) ? limpo : null;
-}
-
 export function urlDaGrade(token, base) {
   const origem = base ?? `${window.location.origin}${window.location.pathname}`;
   return `${origem}#g=${token}`;

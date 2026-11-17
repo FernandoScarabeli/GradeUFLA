@@ -33,7 +33,6 @@ const Calendar = forwardRef(({
   onConfirmMinimo,
   planosBar = null,
   onGerarLink,
-  onComparar,
   professorFiltro = '',
   onProfessorFiltro
 }, ref) => {
@@ -142,8 +141,7 @@ const Calendar = forwardRef(({
     google: googleExport,
     copiarLink,
     compartilhar,
-    podeCompartilhar,
-    onComparar
+    podeCompartilhar
   });
 
   const openForteConfirm = (prereqs, parent) => {

@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import './Compartilhar.css';
 
 /**
- * Itens do "Compartilhar" (PNG, Google Agenda, link, Web Share, comparar).
+ * Itens do "Compartilhar" (PNG, Google Agenda, link e Web Share).
  * O mesmo array alimenta o menu do desktop e a gaveta do celular.
  */
 export function montarItensCompartilhar({
@@ -11,8 +11,7 @@ export function montarItensCompartilhar({
   google,
   copiarLink,
   compartilhar,
-  podeCompartilhar,
-  onComparar
+  podeCompartilhar
 }) {
   return [
     { id: 'png', texto: 'Baixar imagem (PNG)', rotulo: rotuloPng, icone: 'fi-br-download', acao: baixarPng },
@@ -25,8 +24,7 @@ export function montarItensCompartilhar({
       desativado: google.exportando
     },
     { id: 'link', texto: 'Copiar link da grade', icone: 'fi-br-link', acao: copiarLink },
-    podeCompartilhar && { id: 'share', texto: 'Compartilhar…', icone: 'fi-br-share', acao: compartilhar },
-    onComparar && { id: 'comparar', texto: 'Comparar horários com amigos', icone: 'fi-br-users', acao: onComparar }
+    podeCompartilhar && { id: 'share', texto: 'Compartilhar…', icone: 'fi-br-share', acao: compartilhar }
   ].filter(Boolean);
 }
 

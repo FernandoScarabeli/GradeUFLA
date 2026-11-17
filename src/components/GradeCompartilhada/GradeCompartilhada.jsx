@@ -5,8 +5,8 @@ import SemanaLeitura from './SemanaLeitura';
 import './GradeCompartilhada.css';
 
 /**
- * Grade aberta por um link #g= em modo visualização: dá pra ver, importar pra um
- * dos seus planos ou comparar com a sua. Nada aqui altera a grade de quem abriu.
+ * Grade aberta por um link #g= em modo visualização: dá pra ver ou importar pra um
+ * dos seus planos. Nada aqui altera a grade de quem abriu.
  */
 export default function GradeCompartilhada({
   compartilhada,
@@ -15,7 +15,6 @@ export default function GradeCompartilhada({
   avisos = [],
   planosDestino,
   onUsarComoPlano,
-  onComparar,
   onFechar
 }) {
   const [escolhendo, setEscolhendo] = useState(false);
@@ -85,11 +84,6 @@ export default function GradeCompartilhada({
             <button className="btn-primary" type="button" disabled={vazia} onClick={() => setEscolhendo(true)}>
               Usar como meu plano…
             </button>
-            {onComparar && (
-              <button className="btn-secondary" type="button" disabled={vazia} onClick={onComparar}>
-                Comparar com a minha
-              </button>
-            )}
           </>
         )}
 

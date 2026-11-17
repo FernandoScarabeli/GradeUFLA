@@ -13,7 +13,6 @@ import {
 } from './components';
 import { MobileGrade, MobileHistorico, MobileSetup, MobileShell } from './components/Mobile';
 import GradeCompartilhada from './components/GradeCompartilhada/GradeCompartilhada';
-import Comparar from './components/Comparar/Comparar';
 import { ACADEMIC_TERM } from './config/academicTerm';
 import useIsMobileFlow from './hooks/useIsMobileFlow';
 import usePersistedSetup from './hooks/usePersistedSetup';
@@ -55,7 +54,6 @@ import {
   codificarGrade,
   decodificarGrade,
   extrairToken,
-  extrairTokenDeTexto,
   LinkInvalidoError,
   paraGradeSalva,
   urlDaGrade
@@ -75,9 +73,7 @@ const ETAPAS = {
   HISTORICO: 'historico',
   MONTAGEM: 'montagem',
   // Grade aberta por um link #g= (só leitura)
-  COMPARTILHADA: 'compartilhada',
-  // Horários livres em comum com amigos
-  COMPARAR: 'comparar'
+  COMPARTILHADA: 'compartilhada'
 };
 
 // Etapas que usam o fluxo próprio do celular (MobileShell).
@@ -141,7 +137,6 @@ function App() {
   // Link #g= lido uma vez no carregamento; a URL é limpa logo em seguida.
   const [tokenLink] = useState(() => extrairToken(window.location.hash));
   const [compartilhada, setCompartilhada] = useState(null);
-  const [comparacao, setComparacao] = useState(null);
   const [setupInitialStep, setSetupInitialStep] = useState(1);
 
   // Hook de toast para notificações
@@ -194,7 +189,6 @@ function App() {
         let novaEtapa = event.state.etapa;
         // A grade compartilhada só existe na memória da página.
         if (novaEtapa === ETAPAS.COMPARTILHADA && !compartilhada) novaEtapa = ETAPAS.INICIO;
-        if (novaEtapa === ETAPAS.COMPARAR && !comparacao) novaEtapa = ETAPAS.INICIO;
 
         // Se está voltando para SETUP de HISTORICO ou MONTAGEM, começar na última etapa (seleção de semestre)
         if (novaEtapa === ETAPAS.SETUP && (etapa === ETAPAS.HISTORICO || etapa === ETAPAS.MONTAGEM)) {
@@ -219,7 +213,7 @@ function App() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [etapa, compartilhada, comparacao]);
+  }, [etapa, compartilhada]);
 
   // Função helper para mudar de etapa e atualizar o histórico
   const navegarParaEtapa = (novaEtapa) => {
@@ -385,76 +379,6 @@ function App() {
     setSetupInitialStep(3);
     navegarParaEtapa(ETAPAS.MONTAGEM);
     addToast(`Grade compartilhada salva no seu Plano ${id}.`, 'success');
-  };
-
-  // ---------- horários livres em comum ----------
-  const descreverCombinacao = (curso, semestre) => `${semestre}º semestre · ${getCursoInfo(curso)?.nome || curso}`;
-
-  // Sua grade pra comparar: o plano aberto agora ou, se nada estiver aberto, o último salvo.
-  const minhaGradeParaComparar = () => {
-    if (combinacaoCarregada && Object.keys(materiasNoCalendario).length > 0) {
-      return {
-        grade: materiasNoCalendario,
-        descricao: `Plano ${planoAtivo} · ${descreverCombinacao(cursoSelecionado, semestreAtual)}`
-      };
-    }
-    const ultimo = persistencia.ultimoSalvo();
-    if (!ultimo) return null;
-    const estado = reidratarSetup(ultimo.setup, catalogoDe(ultimo.curso, ultimo.matriz));
-    const grade = estado.planos[estado.planoAtivo];
-    if (Object.keys(grade).length === 0) return null;
-    return { grade, descricao: `Plano ${estado.planoAtivo} · ${descreverCombinacao(ultimo.curso, ultimo.semestre)}` };
-  };
-
-  const abrirComparacao = (amigos = []) => {
-    const minha = minhaGradeParaComparar();
-    setComparacao({
-      chave: Date.now(),
-      pessoas: [
-        ...(minha ? [{ id: 'voce', nome: 'Você', fixo: true, ...minha }] : []),
-        ...amigos
-      ]
-    });
-    navegarParaEtapa(ETAPAS.COMPARAR);
-  };
-
-  const handleCompararCompartilhada = () => {
-    if (!compartilhada) return;
-    abrirComparacao([{
-      id: 'amigo-link',
-      nome: 'Amigo 1',
-      grade: compartilhada.grade,
-      descricao: descreverCombinacao(compartilhada.curso, compartilhada.semestre)
-    }]);
-  };
-
-  const carregarLinkParaComparar = async texto => {
-    const token = extrairTokenDeTexto(texto);
-    if (!token) throw new Error('Cole o link de uma grade do GradeUFLA (ele tem “#g=” no final).');
-    let dados;
-    try {
-      dados = await decodificarGrade(token);
-    } catch (erro) {
-      throw new Error(erro?.message && erro.message !== new LinkInvalidoError().message
-        ? erro.message
-        : 'Esse link está incompleto ou corrompido. Peça pra pessoa copiar de novo.');
-    }
-    const catalogo = catalogoDe(dados.curso, dados.matriz);
-    if (catalogo.size === 0) throw new Error('Esse link é de um curso ou matriz que não está no site agora.');
-    const { grade, removidas } = reidratarGrade(paraGradeSalva(dados.turmas), catalogo);
-    return {
-      grade,
-      descricao: descreverCombinacao(dados.curso, dados.semestre),
-      avisos: mensagensRemovidas('dessa grade', removidas, getNomeMateriaOuCodigo)
-    };
-  };
-
-  const handleVoltarDaComparacao = () => {
-    try {
-      window.history.back();
-    } catch {
-      navegarParaEtapa(ETAPAS.INICIO);
-    }
   };
 
   const handleFecharCompartilhada = () => {
@@ -657,7 +581,7 @@ function App() {
       <div className="app-container">
         <ToastContainer toasts={toasts} removeToast={removeToast} />
         {/* No celular o botão flutuante cobriria a grade compartilhada. */}
-        {!fluxoMobile && !(isMobile && [ETAPAS.COMPARTILHADA, ETAPAS.COMPARAR].includes(etapa)) && <AboutMe />}
+        {!fluxoMobile && !(isMobile && etapa === ETAPAS.COMPARTILHADA) && <AboutMe />}
         {fluxoMobile && (
           <MobileShell>
             {etapa === ETAPAS.SETUP && (
@@ -700,7 +624,6 @@ function App() {
                 onRestaurar={handleRestaurarCalendario}
                 planosBar={planosBar}
                 onGerarLink={gerarLinkGrade}
-                onComparar={() => abrirComparacao()}
                 onConfirmMinimo={handleConfirmMinimo}
                 onVoltar={handleVoltarParaHistorico}
               />
@@ -726,16 +649,7 @@ function App() {
               avisos={mensagensRemovidas('da grade compartilhada', compartilhada.removidas, getNomeMateriaOuCodigo)}
               planosDestino={planosDestino}
               onUsarComoPlano={handleUsarComoPlano}
-              onComparar={handleCompararCompartilhada}
               onFechar={handleFecharCompartilhada}
-            />
-          )}
-          {etapa === ETAPAS.COMPARAR && comparacao && (
-            <Comparar
-              key={comparacao.chave}
-              pessoasIniciais={comparacao.pessoas}
-              carregarLink={carregarLinkParaComparar}
-              onVoltar={handleVoltarDaComparacao}
             />
           )}
           {!fluxoMobile && etapa === ETAPAS.SETUP && (
@@ -780,7 +694,6 @@ function App() {
               onMateriaClick={setModalMateria}
               planosBar={planosBar}
               onGerarLink={gerarLinkGrade}
-              onComparar={() => abrirComparacao()}
               professorFiltro={professorFiltro}
               onProfessorFiltro={setProfessorFiltro}
             />

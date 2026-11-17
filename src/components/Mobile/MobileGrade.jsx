@@ -55,8 +55,7 @@ export default function MobileGrade({
   onConfirmMinimo,
   onVoltar,
   planosBar = null,
-  onGerarLink,
-  onComparar
+  onGerarLink
 }) {
   const [vista, setVista] = useState('dia');
   const [dia, setDia] = useState(diaInicial);
@@ -132,8 +131,7 @@ export default function MobileGrade({
     google: { ...googleExport, abrir: () => { fecharSnack(); googleExport.abrir(); } },
     copiarLink,
     compartilhar,
-    podeCompartilhar,
-    onComparar
+    podeCompartilhar
   });
   const ocupacao = useMemo(() => buildCalendarOccupancy(materiasNoCalendario), [materiasNoCalendario]);
 

@@ -4,7 +4,6 @@ import {
   codificarGrade,
   decodificarGrade,
   extrairToken,
-  extrairTokenDeTexto,
   LinkInvalidoError,
   paraGradeSalva,
   turmasDaGrade,
@@ -88,11 +87,8 @@ test('turmasDaGrade ignora entradas sem turma', () => {
   expect(turmasDaGrade({ A: { turmaId: 'X' }, B: {} })).toEqual([['A', 'X']]);
 });
 
-test('extrai o token do fragmento ou do link colado', () => {
+test('extrai o token do fragmento', () => {
   expect(extrairToken('#g=jabc_-')).toBe('jabc_-');
   expect(extrairToken('#outra')).toBeNull();
   expect(extrairToken('')).toBeNull();
-  expect(extrairTokenDeTexto(' https://gradeufla.com.br/#g=zQQ ')).toBe('zQQ');
-  expect(extrairTokenDeTexto('jABC')).toBe('jABC');
-  expect(extrairTokenDeTexto('https://gradeufla.com.br/')).toBeNull();
 });

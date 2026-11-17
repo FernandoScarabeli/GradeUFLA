@@ -50,4 +50,3 @@ span[class*=" fi-br-"]::before {
 .fi-br-share::before { content: "\fbda"; }
 .fi-br-trash::before { content: "\fe19"; }
 .fi-br-triangle-warning::before { content: "\fe35"; }
-.fi-br-users::before { content: "\fea8"; }
