@@ -212,8 +212,7 @@
   overflow: hidden;
   padding: 3px 5px;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--c) 30%, transparent);
-  border-left: 3px solid var(--c);
+  background: color-mix(in srgb, var(--c) 34%, transparent);
   font-size: 0.72rem;
   line-height: 1.2;
 }
@@ -247,5 +246,5 @@
   .sl { --sl-h: 26px; grid-template-columns: 28px repeat(6, minmax(0, 1fr)); column-gap: 2px; padding-right: 6px; }
   .sl__nome { display: none; }
   .sl__cod { display: block; }
-  .sl__bloco { padding: 2px 3px; border-left-width: 2px; }
+  .sl__bloco { padding: 2px 3px; }
 }

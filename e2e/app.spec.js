@@ -160,7 +160,8 @@ test.describe('fluxos críticos com dados controlados', () => {
     await useAcademicFixtures(outra);
     await outra.goto(link);
     await expect(outra.getByText('Grade compartilhada de 2026/2')).toBeVisible({ timeout: 30_000 });
-    await expect(outra.getByRole('heading', { name: /2º semestre · Sistemas de Informação/ })).toBeVisible();
+    await expect(outra.getByRole('heading', { name: 'Grade compartilhada de 2026/2' })).toBeVisible();
+    await expect(outra.getByText(/2º semestre · Sistemas de Informação · Matriz 2023\/01/)).toBeVisible();
     await expect(outra.getByRole('listitem', { name: /Programação Web, segunda das 8h às 10h, turma A/ })).toBeVisible();
     // A URL é limpa: recarregar não reimporta.
     expect(new URL(outra.url()).hash).toBe('');
