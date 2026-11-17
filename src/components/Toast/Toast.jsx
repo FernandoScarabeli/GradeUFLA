@@ -1,5 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import './Toast.css';
+
+const ICONES = {
+  success: 'fi-br-check',
+  warning: 'fi-br-triangle-warning',
+  error: 'fi-br-cross-circle',
+  info: 'fi-br-info'
+};
 
 function ToastItem({ id, message, type = 'error', onClose }) {
   useEffect(() => {
@@ -7,10 +14,11 @@ function ToastItem({ id, message, type = 'error', onClose }) {
     return () => clearTimeout(timer);
   }, [id, onClose]);
 
-  const iconClass = type === 'success' ? 'fi-br-check' : type === 'warning' ? 'fi-br-triangle-warning' : 'fi-br-cross-circle';
+  const iconClass = ICONES[type] || ICONES.info;
 
+  // Erros usam role="alert" (anúncio imediato); os demais ficam na região polite do container.
   return (
-    <div className={`toast toast--${type}`} role="status" aria-live="polite">
+    <div className={`toast toast--${type}`} role={type === 'error' ? 'alert' : undefined}>
       <i className={`fi ${iconClass} toast__icon`} aria-hidden="true" />
       <div className="toast__body">{message}</div>
       <button className="toast__close" onClick={() => onClose && onClose(id)} aria-label="Fechar" title="Fechar">
@@ -24,7 +32,7 @@ export function useToast() {
   const [toasts, setToasts] = useState([]);
 
   const addToast = useCallback((message, type = 'info') => {
-    // normalize type aliases so CSS classes align (some callers send 'warn' etc)
+    // Normaliza apelidos ('warn', 'err') para as classes CSS existentes
     let normalized = (type || 'info').toString().toLowerCase();
     if (normalized === 'warn') normalized = 'warning';
     if (normalized === 'err') normalized = 'error';
@@ -44,7 +52,7 @@ export default function ToastContainer({ toasts = [], removeToast = () => {} }) 
   if (!toasts || toasts.length === 0) return null;
 
   return (
-    <div className="toast-container" aria-live="polite">
+    <div className="toast-container" role="status" aria-live="polite">
       {toasts.map(t => (
         <ToastItem key={t.id} {...t} onClose={removeToast} />
       ))}

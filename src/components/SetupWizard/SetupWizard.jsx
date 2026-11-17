@@ -1,7 +1,16 @@
 import { forwardRef, useState, useEffect } from 'react';
 import Stepper, { Step } from '../Stepper';
 import Dropdown from '../Dropdown';
-import { getCursoInfo, getTotalSemestres, getMatrizesByCurso, getCursosImplementados, ensureCsvLoaded } from '../../data';
+import {
+  ensureCsvLoaded,
+  getCsvLoadState,
+  getCursoInfo,
+  getCursosImplementados,
+  getMatrizesByCurso,
+  getTotalSemestres,
+  retryCsvLoad,
+  useCsvLoadState
+} from '../../data';
 import './SetupWizard.css';
 
 const SetupWizard = forwardRef(({
@@ -9,7 +18,7 @@ const SetupWizard = forwardRef(({
   onVoltar,
   onShowToast,
   initialStep = 1,
-  // controlled values from App so they persist between mounts
+  // Valores controlados pelo App para sobreviverem entre montagens
   cursoSelecionado,
   setCursoSelecionado,
   matrizSelecionada,
@@ -18,26 +27,22 @@ const SetupWizard = forwardRef(({
   setSemestreSelecionado
 }, ref) => {
   const [dropdownError, setDropdownError] = useState(false);
-  const [loadingCsv, setLoadingCsv] = useState(true);
+  const csvLoadState = useCsvLoadState();
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        await ensureCsvLoaded();
-      } catch (e) {
-        // ignore
-      }
-      if (mounted) setLoadingCsv(false);
-    })();
-    return () => { mounted = false; };
+    if (getCsvLoadState().status === 'idle') {
+      ensureCsvLoaded().catch(() => {
+        // O estado central mantém o erro para exibição e retry.
+      });
+    }
   }, []);
 
   const cursoInfo = cursoSelecionado ? getCursoInfo(cursoSelecionado) : null;
-  const matrizes = cursoSelecionado && !loadingCsv ? getMatrizesByCurso(cursoSelecionado) : [];
+  const dataReady = csvLoadState.status === 'success';
+  const matrizes = cursoSelecionado && dataReady ? getMatrizesByCurso(cursoSelecionado) : [];
 
   // Filtra apenas cursos implementados (CSV loader defaults to implemented=true)
-  const cursosImplementados = getCursosImplementados();
+  const cursosImplementados = dataReady ? getCursosImplementados() : [];
 
   const cursosOptions = cursosImplementados.map((curso) => ({
     value: curso.id,
@@ -115,6 +120,12 @@ const SetupWizard = forwardRef(({
     }
   };
 
+  const handleRetryCsv = () => {
+    retryCsvLoad().catch(() => {
+      // O estado central será atualizado e manterá a mensagem de erro visível.
+    });
+  };
+
   return (
     <section className="setup-wizard" ref={ref}>
       <button className="btn-voltar" onClick={onVoltar}>
@@ -122,56 +133,77 @@ const SetupWizard = forwardRef(({
         <span className="btn-voltar__text">Voltar</span>
       </button>
 
-      <Stepper
-        initialStep={initialStep}
-        onStepChange={handleStepChange}
-        onFinalStepCompleted={handleFinalStepCompleted}
-        backButtonText="Voltar"
-        nextButtonText="Continuar"
-        validateStep={validateStep}
-        onValidationError={handleValidationError}
-      >
-        <Step>
-          <h2>Qual é o seu curso?</h2>
-          <p>Selecione o curso que você está cursando</p>
-          <Dropdown
-            options={cursosOptions}
-            value={cursoSelecionado}
-            onChange={setCursoSelecionado}
-            placeholder="Selecione o Curso"
-            error={dropdownError && !cursoSelecionado}
-            searchable={true}
-          />
-        </Step>
-
-        <Step>
-          <h2>Qual é a sua matriz curricular?</h2>
-          <p>Selecione a matriz curricular do curso{cursoInfo ? ` de ${cursoInfo.nome}` : ''}</p>
-          {loadingCsv ? (
-            <div className="setup-wizard__loading">Carregando matrizes...</div>
+      {!dataReady ? (
+        <div
+          className={`setup-wizard__data-state ${csvLoadState.status === 'error' ? 'setup-wizard__data-state--error' : ''}`}
+          role={csvLoadState.status === 'error' ? 'alert' : 'status'}
+        >
+          {csvLoadState.status === 'error' ? (
+            <>
+              <h2>Não foi possível carregar os dados acadêmicos</h2>
+              <p>Verifique sua conexão e tente novamente.</p>
+              <button className="btn-primary" type="button" onClick={handleRetryCsv}>
+                Tentar novamente
+              </button>
+            </>
           ) : (
+            <>
+              <h2>Carregando dados acadêmicos…</h2>
+              <p>Preparando cursos, matrizes e disciplinas.</p>
+            </>
+          )}
+        </div>
+      ) : (
+        <Stepper
+          initialStep={initialStep}
+          onStepChange={handleStepChange}
+          onFinalStepCompleted={handleFinalStepCompleted}
+          backButtonText="Voltar"
+          nextButtonText="Continuar"
+          validateStep={validateStep}
+          onValidationError={handleValidationError}
+        >
+          <Step>
+            <h2>Qual é o seu curso?</h2>
+            <p>Selecione o curso que você está cursando</p>
+            <Dropdown
+              options={cursosOptions}
+              value={cursoSelecionado}
+              onChange={setCursoSelecionado}
+              placeholder="Selecione o Curso"
+              label="Curso"
+              error={dropdownError && !cursoSelecionado}
+              searchable={true}
+            />
+          </Step>
+
+          <Step>
+            <h2>Qual é a sua matriz curricular?</h2>
+            <p>Selecione a matriz curricular do curso{cursoInfo ? ` de ${cursoInfo.nome}` : ''}</p>
             <Dropdown
               options={matrizesOptions}
               value={matrizSelecionada}
               onChange={setMatrizSelecionada}
               placeholder="Selecione a Matriz"
+              label="Matriz curricular"
               error={dropdownError && !matrizSelecionada}
             />
-          )}
-        </Step>
+          </Step>
 
-        <Step>
-          <h2>Qual semestre você está?</h2>
-          <p>Selecione o semestre que você vai cursar</p>
-          <Dropdown
-            options={semestresOptions}
-            value={semestreSelecionado}
-            onChange={setSemestreSelecionado}
-            placeholder="Selecione o Semestre"
-            error={dropdownError && !semestreSelecionado}
-          />
-        </Step>
-      </Stepper>
+          <Step>
+            <h2>Qual semestre você está?</h2>
+            <p>Selecione o semestre que você vai cursar</p>
+            <Dropdown
+              options={semestresOptions}
+              value={semestreSelecionado}
+              onChange={setSemestreSelecionado}
+              placeholder="Selecione o Semestre"
+              label="Semestre"
+              error={dropdownError && !semestreSelecionado}
+            />
+          </Step>
+        </Stepper>
+      )}
     </section>
   );
 });

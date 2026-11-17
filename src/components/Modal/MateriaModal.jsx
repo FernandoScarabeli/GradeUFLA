@@ -1,8 +1,25 @@
-import { getNomeMateria, verificarPreRequisitosDetalhada } from '../../data';
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
+import { getNomeMateriaOuCodigo, getPendenciasPrerequisito } from '../../data';
+import {
+  DIAS_SEMANA,
+  formatarAula,
+  formatarNomeProprio,
+  isTurmaSelecionavel,
+  materiaComTurma,
+  normalizarDia,
+  normalizarHora,
+  verificarConflitoMateria
+} from '../../domain/gradeRules';
+import useAccessibleDialog from '../../hooks/useAccessibleDialog';
 import './Modal.css';
 
-const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const descreverConflito = conflito => {
+  if (!conflito.horarioConflito) return conflito.mensagem || '';
+  const diaNome = DIAS_SEMANA[normalizarDia(conflito.horarioConflito.dia)] || 'Dia';
+  const inicio = normalizarHora(conflito.horarioConflito.inicio);
+  const fim = normalizarHora(conflito.horarioConflito.fim);
+  return `Conflito com ${conflito.materiaConflito} - ${diaNome} ${inicio}:00-${fim}:00`;
+};
 
 const MateriaModal = ({
   materia,
@@ -17,109 +34,34 @@ const MateriaModal = ({
 }) => {
   // Ref para prevenir múltiplas chamadas rápidas (debounce simples)
   const isProcessingRef = useRef(false);
+  const dialogRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const titleId = `materia-modal-title-${useId().replace(/:/g, '')}`;
+  const descriptionId = `materia-modal-description-${useId().replace(/:/g, '')}`;
+
+  useAccessibleDialog({
+    open: Boolean(materia),
+    onClose,
+    dialogRef,
+    initialFocusRef: closeButtonRef
+  });
 
   // Verificar se a matéria já está no calendário
   const jaNoCalendario = materia ? materiasNoCalendario[materia.codigo] : false;
 
-  const normalizeDiaForLabel = (d) => {
-    const n = Number(d);
-    if (!Number.isNaN(n)) {
-      if (n >= 0 && n <= 6) return n;
-      if (n >= 1 && n <= 7) return ((n + 6) % 7 + 7) % 7; // 1->0 .. 7->6
-    }
-    // fallback: try parse first 3 letters
-    const s = String(d).toLowerCase().slice(0,3);
-    const idx = DIAS_SEMANA.findIndex(x => x.toLowerCase().slice(0,3) === s);
-    return idx !== -1 ? idx : 0;
-  };
-
-  const parseHour = (val) => {
-    if (val == null) return null;
-    if (typeof val === 'number') return val;
-    if (typeof val === 'string') {
-      const match = val.match(/^(\d{1,2})[:.]?(\d{0,2})/);
-      if (match) return Number(match[1]);
-      const n = Number(val);
-      return Number.isNaN(n) ? null : n;
-    }
-    return null;
-  };
-
-  const normalizeDiaValue = (d) => {
-    if (d == null) return null;
-    const n = Number(d);
-    if (!Number.isNaN(n)) {
-      if (n >= 0 && n <= 6) return n;
-      if (n >= 1 && n <= 7) return ((n + 6) % 7 + 7) % 7;
-    }
-    const s = String(d).toLowerCase().slice(0,3);
-    const idx = DIAS_SEMANA.findIndex(x => x.toLowerCase().slice(0,3) === s);
-    return idx !== -1 ? idx : null;
-  };
-
-  const horariosConflitam = (horario1, horario2) => {
-    const dia1 = normalizeDiaValue(horario1.dia);
-    const dia2 = normalizeDiaValue(horario2.dia);
-
-    // Se dias são diferentes, não há conflito
-    if (dia1 !== dia2 || dia1 === null || dia2 === null) {
-      return false;
-    }
-
-    const inicio1 = parseHour(horario1.inicio);
-    const fim1 = parseHour(horario1.fim);
-    const inicio2 = parseHour(horario2.inicio);
-    const fim2 = parseHour(horario2.fim);
-
-    if (inicio1 === null || fim1 === null || inicio2 === null || fim2 === null) {
-      return false;
-    }
-
-    // Há conflito se: horario1 começa ANTES de horario2 terminar E horario1 termina DEPOIS de horario2 começar
-    return (inicio1 < fim2 && fim1 > inicio2);
-  };
-
-  const isAnpOnlyMateria = (m) => {
-    const horarios = m?.horarios || [];
-    if (horarios.length === 0) return true;
-    return horarios.every(h => normalizeDiaValue(h.dia) === 6);
-  };
-
-  const getConflitoParaTurma = (turma) => {
-    if (!turma) return { temConflito: false };
-
-    if (turma.anp === true && isAnpOnlyMateria(turma)) {
-      return { temConflito: false };
-    }
-
-    const horariosNovos = turma.horarios || [];
-    for (const [codigo, materiaExistente] of Object.entries(materiasNoCalendario || {})) {
-      // ✅ CRUCIAL: Ignorar a própria matéria ao verificar conflitos (permite trocar de turma)
-      if (codigo === materia?.codigo) continue;
-
-      if (materiaExistente.anp && isAnpOnlyMateria(materiaExistente)) continue;
-
-      const horariosExistentes = materiaExistente.horarios || [];
-      for (const novoHorario of horariosNovos) {
-        if (!novoHorario) continue;
-        for (const horarioExistente of horariosExistentes) {
-          if (!horarioExistente) continue;
-          if (horariosConflitam(novoHorario, horarioExistente)) {
-            return {
-              temConflito: true,
-              materiaConflito: materiaExistente.nome || codigo,
-              horarioConflito: horarioExistente
-            };
-          }
-        }
-      }
-    }
-
-    return { temConflito: false };
-  };
+  const getConflitoParaTurma = turma => verificarConflitoMateria(
+    turma,
+    materiasNoCalendario,
+    { ignorarCodigo: materia?.codigo }
+  );
 
   const handleAddTurmaClick = (turma) => {
     if (!turma) return;
+
+    if (!isTurmaSelecionavel(turma)) {
+      onShowToast?.('Esta turma não possui horário informado.', 'error');
+      return;
+    }
 
     // Prevenir múltiplas execuções rápidas
     if (isProcessingRef.current) return;
@@ -130,105 +72,74 @@ const MateriaModal = ({
       isProcessingRef.current = false;
     }, 300);
 
-    // Verificar limite de créditos ANTES de tudo
-    const CREDIT_MAX = 32;
-    const creditosAtuais = Object.values(materiasNoCalendario || {}).reduce((acc, m) => acc + (m.creditos || 0), 0);
-    const novoTotal = creditosAtuais + (materia.creditos || 0);
+    // Pré-requisitos são checados aqui; créditos, conflito e ANP são validados
+    // (com mensagem própria) pelo handleAddMateria do App.
+    const { faltandoForte, faltandoMinimo } = getPendenciasPrerequisito(materia, {
+      materiasAprovadas,
+      materiasNoCalendario,
+      prerequisitosConfirmados: materiasMinimoConfirmadas,
+      allMateriasList
+    });
 
-    if (novoTotal > CREDIT_MAX) {
-      if (typeof onShowToast === 'function') {
-        onShowToast(
-          `Adicionar esta matéria excederia o limite de 32 créditos.`,
-          'error'
-        );
-      }
-      return;
-    }
-
-    // Verificar pré-requisitos ANTES de adicionar
-    const det = verificarPreRequisitosDetalhada(materia, materiasAprovadas, materiasNoCalendario, allMateriasList);
-
-    // Filter prereqs usando lista de confirmados
-    const faltandoForteRaw = det.faltandoForte || [];
-    const faltandoForte = faltandoForteRaw.filter(pr => !materiasMinimoConfirmadas.includes(pr));
-
-    const faltandoCoreqRaw = det.faltandoCoreq || [];
-    const faltandoCoreq = faltandoCoreqRaw.filter(pr => !materiasMinimoConfirmadas.includes(pr));
-
-    const faltandoMinimoRaw = det.faltandoMinimo || [];
-    const faltandoMinimo = faltandoMinimoRaw.filter(pr => !materiasMinimoConfirmadas.includes(pr));
-
-    // Se falta pré-requisito forte -> bloquear
     if (faltandoForte.length > 0) {
-      if (typeof onShowToast === 'function') {
-        onShowToast(
-          `Pré-requisitos fortes faltando: ${faltandoForte.map(f => getNomeMateria(f)).join(', ')}`,
-          'error'
-        );
-      }
+      onShowToast?.(
+        `Pré-requisitos fortes faltando: ${faltandoForte.map(getNomeMateriaOuCodigo).join(', ')}`,
+        'error'
+      );
       return;
     }
 
-    // Se falta co-requisito -> bloquear
-    if (faltandoCoreq.length > 0) {
-      if (typeof onShowToast === 'function') {
-        onShowToast(
-          `Co-requisito(s) necessários: ${faltandoCoreq.map(f => getNomeMateria(f)).join(', ')}`,
-          'error'
-        );
-      }
-      return;
-    }
-
-    // Se falta pré-requisito mínimo -> bloquear
     if (faltandoMinimo.length > 0) {
-      if (typeof onShowToast === 'function') {
-        onShowToast(
-          `Pré-requisito mínimo necessário: ${faltandoMinimo.map(f => getNomeMateria(f)).join(', ')}`,
-          'error'
-        );
-      }
+      onShowToast?.(
+        `Pré-requisito mínimo necessário: ${faltandoMinimo.map(getNomeMateriaOuCodigo).join(', ')}`,
+        'error'
+      );
       return;
     }
 
-    // Verificar conflito de horários
-    const conflito = getConflitoParaTurma(turma);
-    if (conflito.temConflito) {
-      if (typeof onShowToast === 'function') {
-        const diaNome = DIAS_SEMANA[normalizeDiaValue(conflito.horarioConflito?.dia)] || 'Dia';
-        const inicio = parseHour(conflito.horarioConflito?.inicio);
-        const fim = parseHour(conflito.horarioConflito?.fim);
-        onShowToast(
-          `Conflito de horário com "${conflito.materiaConflito}" - ${diaNome} das ${inicio}:00 às ${fim}:00`,
-          'error'
-        );
-      }
-      return;
-    }
+    const nova = materiaComTurma(materia, turma);
 
-    const nova = {
-      ...materia,
-      turmaId: turma.id,
-      horarios: turma.horarios || [],
-      anp: turma.anp === true,  // Passa a flag anp da turma
-      turmaAnp: turma.anp === true  // Backup da flag
-    };
-
-    if (typeof onSave === 'function') {
-      // call onSave but do NOT close the modal here; parent controls closing
-      // handleAddMateria will verify conflicts with the latest state
-      onSave(nova);
-    }
+    // O modal continua aberto; quem decide fechar é o componente pai.
+    onSave?.(nova);
   };
 
   if (!materia) return null;
 
+  const pendencias = getPendenciasPrerequisito(materia, {
+    materiasAprovadas,
+    materiasNoCalendario,
+    prerequisitosConfirmados: materiasMinimoConfirmadas,
+    allMateriasList
+  });
+  const prerequisitosPendentes = new Set([
+    ...pendencias.faltandoForte,
+    ...pendencias.faltandoMinimo,
+    ...pendencias.faltandoCoreq
+  ]);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}><i className="fi fi-br-cross-small"></i></button>
-        <h3 className="modal-titulo">{materia.nome}</h3>
-        <p className="modal-codigo">{materia.codigo}</p>
+      <div
+        ref={dialogRef}
+        className="modal-content"
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        tabIndex={-1}
+      >
+        <button
+          ref={closeButtonRef}
+          className="modal-close"
+          onClick={onClose}
+          type="button"
+          aria-label="Fechar detalhes da disciplina"
+        >
+          <i className="fi fi-br-cross-small" aria-hidden="true" />
+        </button>
+        <h3 className="modal-titulo" id={titleId}>{materia.nome}</h3>
+        <p className="modal-codigo" id={descriptionId}>{materia.codigo}</p>
 
         <div className="modal-info">
           <div className="modal-info-item">
@@ -243,7 +154,7 @@ const MateriaModal = ({
           </div>
           <div className="modal-info-item">
             <span className="modal-label">Turmas:</span>
-            <span className="modal-value">{materia.turmas?.length || 1}</span>
+            <span className="modal-value">{materia.turmas?.length ?? 0}</span>
           </div>
         </div>
 
@@ -271,47 +182,47 @@ const MateriaModal = ({
             {materia.turmas?.map((turma) => {
               // Verificar se esta turma é a que está no calendário
               const turmaAtual = jaNoCalendario && materiasNoCalendario[materia.codigo]?.turmaId === turma.id;
+              const turmaDisponivel = isTurmaSelecionavel(turma);
 
               const conflito = getConflitoParaTurma(turma);
-              const conflitoLabel = conflito.temConflito
-                ? (() => {
-                    const diaNome = DIAS_SEMANA[normalizeDiaValue(conflito.horarioConflito?.dia)] || 'Dia';
-                    const inicio = parseHour(conflito.horarioConflito?.inicio);
-                    const fim = parseHour(conflito.horarioConflito?.fim);
-                    return `Conflito com ${conflito.materiaConflito} - ${diaNome} ${inicio}:00-${fim}:00`;
-                  })()
-                : '';
+              const conflitoLabel = conflito.temConflito ? descreverConflito(conflito) : '';
 
               return (
                 <div
                   key={turma.id}
-                  className={`turma-item ${conflito.temConflito ? 'turma-item--conflito' : ''} ${turmaAtual ? 'turma-item--selecionada' : ''}`}
+                  className={`turma-item ${!turmaDisponivel ? 'turma-item--disabled' : ''} ${conflito.temConflito ? 'turma-item--conflito' : ''} ${turmaAtual ? 'turma-item--selecionada' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (conflito.temConflito || turmaAtual) return;
+                    if (!turmaDisponivel || conflito.temConflito || turmaAtual) return;
                     handleAddTurmaClick(turma);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
                       e.stopPropagation();
-                      if (conflito.temConflito || turmaAtual) return;
+                      if (!turmaDisponivel || conflito.temConflito || turmaAtual) return;
                       handleAddTurmaClick(turma);
                     }
                   }}
                   role="button"
-                  tabIndex={0}
+                  tabIndex={turmaDisponivel ? 0 : -1}
+                  aria-disabled={!turmaDisponivel || conflito.temConflito || turmaAtual}
                 >
                   <span className="turma-id">Turma {turma.id}</span>
+                  {turma.professor && (
+                    <span className="turma-professor">{formatarNomeProprio(turma.professor)}</span>
+                  )}
                   <div className="turma-horarios">
                     {(turma.horarios && turma.horarios.length > 0) ? (
                       turma.horarios.map((h, i) => (
                         <span key={i} className="horario-badge">
-                          {DIAS_SEMANA[normalizeDiaForLabel(h.dia)]} {h.inicio}{typeof h.inicio === 'number' ? 'h' : ''}-{h.fim}{typeof h.fim === 'number' ? 'h' : ''}
+                          {formatarAula(h, { comSala: true })}
                         </span>
                       ))
-                    ) : (
+                    ) : turma.anp === true ? (
                       <span className="horario-badge horario-badge--anp">ANP</span>
+                    ) : (
+                      <span className="horario-badge">Horário não informado</span>
                     )}
                   </div>
                   {turmaAtual && (
@@ -332,18 +243,19 @@ const MateriaModal = ({
            </div>
          </div>
 
-        {materia.preRequisitos.length > 0 && (
+        {materia.preRequisitos?.length > 0 && (
           <div className="modal-prereq">
             <span className="modal-label">Pré-requisitos:</span>
             <div className="prereq-lista">
               {materia.preRequisitos.map(pr => {
-                const cumprido = materiasAprovadas.includes(pr);
+                // Considera aprovadas, confirmações manuais e co-requisitos já na grade
+                const cumprido = !prerequisitosPendentes.has(pr);
                 return (
                   <span
                     key={pr}
                     className={`prereq-badge ${cumprido ? 'prereq-badge--completed' : 'prereq-badge--pending'}`}
                   >
-                    <i className={`fi ${cumprido ? 'fi-br-check' : 'fi-br-cross'}`}></i> {getNomeMateria(pr)}
+                    <i className={`fi ${cumprido ? 'fi-br-check' : 'fi-br-cross'}`} aria-hidden="true"></i> {getNomeMateriaOuCodigo(pr)}
                   </span>
                 );
               })}

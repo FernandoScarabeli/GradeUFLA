@@ -1,7 +1,19 @@
+import { useState } from 'react';
 import RotatingText from '../RotatingText';
 import './Hero.css';
 
-const Hero = ({ onGetStartedClick }) => {
+const Hero = ({
+  onGetStartedClick,
+  csvLoadStatus = 'success',
+  onRetryCsv,
+  temGradeSalva = false,
+  onContinuarSalvo,
+  onComecarDoZero
+}) => {
+  const [confirmandoZero, setConfirmandoZero] = useState(false);
+  const isLoading = csvLoadStatus === 'idle' || csvLoadStatus === 'loading';
+  const hasError = csvLoadStatus === 'error';
+
   return (
     <section className="hero-section">
       <div className="hero-content">
@@ -28,11 +40,72 @@ const Hero = ({ onGetStartedClick }) => {
           Tenha uma visão clara do seu semestre, organizando suas disciplinas de forma simples, eficiente e sem complicações.
         </p>
 
-        <div className="hero-buttons">
-          <button className="btn-primary" onClick={onGetStartedClick}>
-            Vamos lá
-          </button>
-        </div>
+        {!temGradeSalva && (
+          <div className="hero-buttons">
+            <button
+              className="btn-primary"
+              onClick={onGetStartedClick}
+              disabled={csvLoadStatus !== 'success'}
+            >
+              {isLoading ? 'Carregando dados…' : 'Vamos lá'}
+            </button>
+          </div>
+        )}
+
+        {temGradeSalva && !confirmandoZero && (
+          <div className="hero-buttons">
+            <button
+              className="btn-primary"
+              type="button"
+              onClick={onContinuarSalvo}
+              disabled={csvLoadStatus !== 'success'}
+            >
+              {isLoading ? 'Carregando dados…' : 'Continuar de onde parei'}
+            </button>
+            <button
+              className="btn-secondary"
+              type="button"
+              onClick={() => setConfirmandoZero(true)}
+              disabled={csvLoadStatus !== 'success'}
+            >
+              Começar do zero
+            </button>
+          </div>
+        )}
+
+        {temGradeSalva && confirmandoZero && (
+          <div className="hero-confirm" role="group" aria-labelledby="hero-confirm-texto">
+            <p id="hero-confirm-texto">Isso apaga as grades salvas neste navegador. Quer mesmo começar do zero?</p>
+            <div className="hero-buttons">
+              <button
+                className="btn-primary"
+                type="button"
+                onClick={() => { setConfirmandoZero(false); onComecarDoZero?.(); }}
+              >
+                Apagar e começar
+              </button>
+              <button className="btn-secondary" type="button" onClick={() => setConfirmandoZero(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isLoading && (
+          <p className="hero-data-status" role="status">
+            Preparando cursos, matrizes e disciplinas…
+          </p>
+        )}
+
+        {hasError && (
+          <div className="hero-data-error" role="alert">
+            <p>Não foi possível carregar os dados acadêmicos.</p>
+            <p>Verifique sua conexão e tente novamente.</p>
+            <button className="btn-secondary" type="button" onClick={onRetryCsv}>
+              Tentar novamente
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );

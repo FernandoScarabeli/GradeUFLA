@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Política de Privacidade · GradeUFLA</title>
+  <meta name="description" content="Como o GradeUFLA trata seus dados, inclusive na exportação pro Google Agenda." />
+  <link rel="icon" href="/favicon.ico" />
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0; background: #0b0f14; color: #e6edf3;
+      font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 720px; margin: 0 auto; padding: 48px 16px 64px; }
+    h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 4px; }
+    h2 { font-size: 1.15rem; margin: 32px 0 8px; }
+    p, li { color: #c9d1d9; }
+    .sub { color: #8b949e; margin: 0 0 24px; }
+    a { color: #00f0b5; }
+    code { font-size: 0.9em; background: #161b22; padding: 1px 6px; border-radius: 6px; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Política de Privacidade</h1>
+    <p class="sub">GradeUFLA · atualizada em 16 de novembro de 2026</p>
+
+    <p>
+      O GradeUFLA (<a href="https://gradeufla.com.br">gradeufla.com.br</a>) é um site independente e gratuito
+      que ajuda estudantes da UFLA a montar a grade horária. Ele não tem vínculo oficial com a UFLA.
+    </p>
+
+    <h2>Quais dados o site usa</h2>
+    <p>
+      O site não tem cadastro nem servidor próprio de dados. Curso, matriz, semestre, matérias cursadas e as
+      grades montadas (Planos A, B e C) ficam salvas só no seu navegador (no armazenamento local do próprio site),
+      pra você continuar de onde parou quando voltar. Nada disso é enviado pra gente. Pra apagar, use
+      <strong>Começar do zero</strong> na tela inicial ou limpe os dados do site no navegador.
+    </p>
+
+    <h2>Exportação pro Google Agenda</h2>
+    <p>Quando você clica em <strong>Exportar pro Google Agenda</strong>:</p>
+    <ul>
+      <li>
+        O Google pede que você entre na sua conta e autorize a permissão
+        <code>calendar.app.created</code>. Ela só dá acesso aos calendários que o próprio GradeUFLA cria.
+        O site <strong>não lê, não altera e não apaga</strong> sua agenda pessoal nem nenhum outro calendário seu.
+      </li>
+      <li>
+        O site cria um calendário chamado “Grade UFLA &lt;período&gt;” e adiciona nele as aulas da sua grade
+        (nome da matéria, código, turma, dia e horário). Se você exportar de novo, esse calendário é recriado
+        com a grade atual.
+      </li>
+      <li>
+        Tudo acontece direto entre o seu navegador e o Google. O token de acesso fica na memória da página e
+        some ao fechar ou recarregar. Ele não é guardado nem enviado a nenhum servidor do GradeUFLA.
+      </li>
+      <li>
+        O navegador guarda só o identificador do calendário criado, pra recriá-lo sem duplicar na próxima exportação.
+      </li>
+    </ul>
+    <p>
+      O uso de informações recebidas das APIs do Google segue a
+      <a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener">Política de Dados do Usuário dos Serviços de API do Google</a>,
+      incluindo os requisitos de Uso Limitado. Os dados não são vendidos, compartilhados nem usados pra publicidade.
+    </p>
+
+    <h2>Como revogar o acesso</h2>
+    <p>
+      Você pode apagar o calendário “Grade UFLA” no Google Agenda quando quiser e revogar a permissão em
+      <a href="https://myaccount.google.com/permissions" rel="noopener">myaccount.google.com/permissions</a>.
+    </p>
+
+    <h2>Hospedagem</h2>
+    <p>
+      O site é hospedado na Netlify, que pode registrar dados técnicos de acesso (como endereço IP) pra operar o serviço.
+    </p>
+
+    <h2>Contato</h2>
+    <p>
+      Dúvidas ou pedidos sobre privacidade: abra uma issue em
+      <a href="https://github.com/FernandoScarabeli/GradeUFLA/issues" rel="noopener">github.com/FernandoScarabeli/GradeUFLA</a>.
+    </p>
+
+    <p><a href="/">← Voltar pro GradeUFLA</a></p>
+  </main>
+</body>
+</html>
