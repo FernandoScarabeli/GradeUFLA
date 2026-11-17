@@ -151,7 +151,14 @@ test.describe('fluxo mobile com dados controlados', () => {
 
   test('exporta a grade pro Google Agenda pela gaveta', async ({ page }) => {
     const chamadas = chamadasGoogle;
-    await addSubject(page, 'Programação Web', 'A');
+    const turmas = await openTurmas(page, 'Programação Web');
+    const turmaA = turmas.getByRole('radio', { name: /Turma A/ });
+    await expect(turmaA).toContainText('Alexandre Alves de Carvalho');
+    await expect(turmaA).toContainText('Seg 08:00–09:40 · PV1-101');
+    await turmaA.click();
+    await turmas.getByRole('button', { name: /Adicionar turma A/ }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('tabpanel', { name: 'Aulas de segunda' })).toContainText('Turma A · 08:00–09:40 · PV1-101');
 
     await page.getByRole('button', { name: 'Exportar pro Google Agenda' }).click();
     const sheet = page.getByRole('dialog', { name: 'Exportar pro Google Agenda' });

@@ -128,7 +128,13 @@ test.describe('fluxos críticos com dados controlados', () => {
 
   test('exporta a grade pro Google Agenda no período escolhido', async ({ page }) => {
     const chamadas = chamadasGoogle;
+    const detalhes = await openSubject(page, 'Programação Web');
+    const turmaA = detalhes.getByRole('button', { name: /Turma A/ });
+    await expect(turmaA).toContainText('Alexandre Alves de Carvalho');
+    await expect(turmaA).toContainText('Seg 08:00–09:40 · PV1-101');
+    await detalhes.getByRole('button', { name: 'Fechar detalhes da disciplina' }).click();
     await addSubject(page, 'Programação Web', 'A');
+    await expect(page.locator('.calendar__legend')).toContainText('Turma A · Alexandre Alves de Carvalho');
 
     await page.getByRole('button', { name: 'Exportar pro Google Agenda' }).click();
     const dialog = page.getByRole('dialog', { name: 'Exportar pro Google Agenda' });
@@ -148,8 +154,12 @@ test.describe('fluxos críticos com dados controlados', () => {
     ]);
     expect(chamadas[1].body).toMatchObject({
       summary: 'Programação Web',
+      location: 'PV1-101',
+      description: 'NOR201 · Turma A\nProfessor(a): Alexandre Alves de Carvalho',
       start: { dateTime: '2026-08-10T08:00:00', timeZone: 'America/Sao_Paulo' },
-      recurrence: ['RRULE:FREQ=WEEKLY;UNTIL=20261212T030000Z']
+      end: { dateTime: '2026-08-10T09:40:00', timeZone: 'America/Sao_Paulo' },
+      recurrence: ['RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20261212T030000Z'],
+      reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 15 }] }
     });
   });
 });

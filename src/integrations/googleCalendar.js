@@ -1,4 +1,4 @@
-import { normalizarDia, normalizarHora, SATURDAY_INDEX } from '../domain/gradeRules';
+import { formatarNomeProprio, horaExata, normalizarDia, normalizarHora, SATURDAY_INDEX } from '../domain/gradeRules';
 
 export const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.app.created';
 export const TIME_ZONE = 'America/Sao_Paulo';
@@ -71,7 +71,14 @@ const isSlotAnp = (materia, horario, dia) => Boolean(materia?.anp)
   && dia === SATURDAY_INDEX
   && normalizarHora(horario?.inicio) === Number(materia.anpHour);
 
-/** Transforma a grade em eventos semanais do Google Agenda, de `inicio` até `fim` (inclusive). */
+const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+const LEMBRETE_MINUTOS = 15;
+
+/**
+ * Transforma a grade em eventos semanais do Google Agenda, de `inicio` até `fim` (inclusive).
+ * Dias da mesma matéria com o mesmo horário e a mesma sala viram um evento só
+ * ("Semanal: cada segunda e quarta"), como o aluno faria à mão.
+ */
 export function montarEventos(materiasNoCalendario, periodo) {
   const erro = validarPeriodo(periodo);
   if (erro) throw new Error(erro);
@@ -80,34 +87,45 @@ export function montarEventos(materiasNoCalendario, periodo) {
 
   // UNTIL é em UTC: meia-noite do dia seguinte em Lavras (UTC-3) cobre a última aula da noite.
   const until = `${formatarData(somarDias(fim, 1)).replaceAll('-', '')}T030000Z`;
-  const eventos = [];
-  const vistos = new Set();
+  const grupos = new Map();
 
   for (const [codigo, materia] of Object.entries(materiasNoCalendario || {})) {
     const horarios = Array.isArray(materia?.horarios) ? materia.horarios : [];
     for (const horario of horarios) {
       const dia = normalizarDia(horario?.dia);
-      const horaInicio = normalizarHora(horario?.inicio);
-      const horaFim = normalizarHora(horario?.fim);
-      if (dia == null || horaInicio == null || horaFim == null || horaFim <= horaInicio) continue;
-      if (isSlotAnp(materia, horario, dia)) continue;
+      if (dia == null || isSlotAnp(materia, horario, dia)) continue;
+      const { inicio: horaInicio, fim: horaFim } = horaExata(horario);
+      if (!horaInicio || !horaFim || horaFim <= horaInicio) continue;
 
-      const chave = `${codigo}|${dia}|${horaInicio}|${horaFim}`;
-      if (vistos.has(chave)) continue;
-      vistos.add(chave);
-
-      const data = primeiraOcorrencia(inicio, dia);
-      if (data > fim) continue;
-      const dataTexto = formatarData(data);
-
-      eventos.push({
-        summary: materia.nome || codigo,
-        description: [codigo, materia.turmaId && `Turma ${materia.turmaId}`].filter(Boolean).join(' · '),
-        start: { dateTime: `${dataTexto}T${pad(horaInicio)}:00:00`, timeZone: TIME_ZONE },
-        end: { dateTime: `${dataTexto}T${pad(horaFim)}:00:00`, timeZone: TIME_ZONE },
-        recurrence: [`RRULE:FREQ=WEEKLY;UNTIL=${until}`]
-      });
+      const sala = String(horario?.sala || '').trim();
+      const chave = `${codigo}|${horaInicio}|${horaFim}|${sala}`;
+      if (!grupos.has(chave)) grupos.set(chave, { codigo, materia, horaInicio, horaFim, sala, dias: new Set() });
+      grupos.get(chave).dias.add(dia);
     }
+  }
+
+  const eventos = [];
+  for (const { codigo, materia, horaInicio, horaFim, sala, dias } of grupos.values()) {
+    const datas = [...dias].map(dia => primeiraOcorrencia(inicio, dia)).filter(data => data <= fim);
+    if (datas.length === 0) continue;
+    // O DTSTART precisa ser uma das ocorrências, senão o Google cria uma aula a mais.
+    const primeira = formatarData(new Date(Math.min(...datas)));
+    const byday = [...dias].sort((a, b) => a - b).map(dia => BYDAY[dia]).join(',');
+
+    const descricao = [
+      [codigo, materia.turmaId && `Turma ${materia.turmaId}`].filter(Boolean).join(' · '),
+      materia.professor && `Professor(a): ${formatarNomeProprio(materia.professor)}`
+    ].filter(Boolean).join('\n');
+
+    eventos.push({
+      summary: materia.nome || codigo,
+      ...(sala ? { location: sala } : {}),
+      description: descricao,
+      start: { dateTime: `${primeira}T${horaInicio}:00`, timeZone: TIME_ZONE },
+      end: { dateTime: `${primeira}T${horaFim}:00`, timeZone: TIME_ZONE },
+      recurrence: [`RRULE:FREQ=WEEKLY;BYDAY=${byday};UNTIL=${until}`],
+      reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: LEMBRETE_MINUTOS }] }
+    });
   }
 
   return eventos.sort((a, b) => a.start.dateTime.localeCompare(b.start.dateTime));

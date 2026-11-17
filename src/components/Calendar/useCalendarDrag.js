@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getPendenciasPrerequisito } from '../../data';
-import { verificarConflitoMateria } from '../../domain/gradeRules';
+import { materiaComTurma, verificarConflitoMateria } from '../../domain/gradeRules';
 import {
   DIAS_SEMANA,
   SATURDAY_INDEX,
@@ -249,13 +249,7 @@ export default function useCalendarDrag({
     if (turmaIndex !== -1) setSelectedTurmaIndex(turmaIndex);
   };
 
-  const addTurma = (materia, turma) => onAddMateria({
-    ...materia,
-    turmaId: turma.id,
-    horarios: turma.horarios,
-    anp: turma.anp === true,
-    turmaAnp: turma.anp === true
-  });
+  const addTurma = (materia, turma) => onAddMateria(materiaComTurma(materia, turma));
 
   const handleDropFromCalendar = (clientX, clientY) => {
     const sidebar = document.querySelector('.calendar__sidebar');

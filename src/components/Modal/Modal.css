@@ -184,6 +184,13 @@
   margin-bottom: 6px;
 }
 
+.turma-professor {
+  display: block;
+  margin: -2px 0 8px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
 .turma-horarios {
   display: flex;
   flex-wrap: wrap;

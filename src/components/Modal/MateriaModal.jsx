@@ -2,7 +2,10 @@ import { useId, useRef } from 'react';
 import { getNomeMateriaOuCodigo, getPendenciasPrerequisito } from '../../data';
 import {
   DIAS_SEMANA,
+  formatarAula,
+  formatarNomeProprio,
   isTurmaSelecionavel,
+  materiaComTurma,
   normalizarDia,
   normalizarHora,
   verificarConflitoMateria
@@ -94,13 +97,7 @@ const MateriaModal = ({
       return;
     }
 
-    const nova = {
-      ...materia,
-      turmaId: turma.id,
-      horarios: turma.horarios || [],
-      anp: turma.anp === true,
-      turmaAnp: turma.anp === true
-    };
+    const nova = materiaComTurma(materia, turma);
 
     // O modal continua aberto; quem decide fechar é o componente pai.
     onSave?.(nova);
@@ -212,11 +209,14 @@ const MateriaModal = ({
                   aria-disabled={!turmaDisponivel || conflito.temConflito || turmaAtual}
                 >
                   <span className="turma-id">Turma {turma.id}</span>
+                  {turma.professor && (
+                    <span className="turma-professor">{formatarNomeProprio(turma.professor)}</span>
+                  )}
                   <div className="turma-horarios">
                     {(turma.horarios && turma.horarios.length > 0) ? (
                       turma.horarios.map((h, i) => (
                         <span key={i} className="horario-badge">
-                          {DIAS_SEMANA[normalizarDia(h.dia) ?? 0]} {h.inicio}{typeof h.inicio === 'number' ? 'h' : ''}-{h.fim}{typeof h.fim === 'number' ? 'h' : ''}
+                          {formatarAula(h, { comSala: true })}
                         </span>
                       ))
                     ) : turma.anp === true ? (

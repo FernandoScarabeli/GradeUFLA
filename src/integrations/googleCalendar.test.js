@@ -5,21 +5,57 @@ import {
 const semestre = { inicio: '2026-08-10', fim: '2026-12-11' };
 
 describe('montarEventos', () => {
-  it('cria um evento semanal por horário, começando no primeiro dia certo', () => {
+  it('cria um evento semanal com sala, horário exato, professor e lembrete', () => {
     const eventos = montarEventos({
-      GCC101: { nome: 'Grafos', turmaId: '10A', horarios: [{ dia: 2, inicio: 19, fim: 21 }, { dia: 4, inicio: 7, fim: 9 }] }
+      GCC101: {
+        nome: 'Grafos', turmaId: '10A', professor: 'MARIA DA SILVA',
+        horarios: [
+          { dia: 2, inicio: 19, fim: 21, horaInicio: '19:00', horaFim: '20:40', sala: 'PV2-202' },
+          { dia: 4, inicio: 7, fim: 9, horaInicio: '07:00', horaFim: '08:40', sala: 'PV6-18' }
+        ]
+      }
     }, semestre);
 
     expect(eventos).toHaveLength(2);
     // 10/08/2026 é segunda; terça (dia 2) é 11/08 e quinta (dia 4) é 13/08.
     expect(eventos[0]).toEqual({
       summary: 'Grafos',
-      description: 'GCC101 · Turma 10A',
+      location: 'PV2-202',
+      description: 'GCC101 · Turma 10A\nProfessor(a): Maria da Silva',
       start: { dateTime: '2026-08-11T19:00:00', timeZone: 'America/Sao_Paulo' },
-      end: { dateTime: '2026-08-11T21:00:00', timeZone: 'America/Sao_Paulo' },
-      recurrence: ['RRULE:FREQ=WEEKLY;UNTIL=20261212T030000Z']
+      end: { dateTime: '2026-08-11T20:40:00', timeZone: 'America/Sao_Paulo' },
+      recurrence: ['RRULE:FREQ=WEEKLY;BYDAY=TU;UNTIL=20261212T030000Z'],
+      reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 15 }] }
     });
     expect(eventos[1].start.dateTime).toBe('2026-08-13T07:00:00');
+  });
+
+  it('junta os dias com o mesmo horário e a mesma sala num evento só', () => {
+    const eventos = montarEventos({
+      IOT: {
+        nome: 'Internet das Coisas',
+        horarios: [
+          { dia: 3, inicio: 17, fim: 19, horaInicio: '17:00', horaFim: '18:40', sala: 'PV6-06' },
+          { dia: 1, inicio: 17, fim: 19, horaInicio: '17:00', horaFim: '18:40', sala: 'PV6-06' },
+          { dia: 5, inicio: 17, fim: 19, horaInicio: '17:00', horaFim: '18:40', sala: 'DCC05-B' }
+        ]
+      }
+    }, { inicio: '2026-08-12', fim: '2026-12-11' });
+
+    expect(eventos).toHaveLength(2);
+    // Começa na quarta 12/08 (primeira ocorrência), não na segunda seguinte.
+    expect(eventos[0].start.dateTime).toBe('2026-08-12T17:00:00');
+    expect(eventos[0].recurrence).toEqual(['RRULE:FREQ=WEEKLY;BYDAY=MO,WE;UNTIL=20261212T030000Z']);
+    expect(eventos[0].location).toBe('PV6-06');
+    expect(eventos[1].location).toBe('DCC05-B');
+  });
+
+  it('sem os campos novos do CSV, usa as horas cheias e não põe local', () => {
+    const [evento] = montarEventos({ X: { nome: 'X', horarios: [{ dia: 1, inicio: 8, fim: 10 }] } }, semestre);
+    expect(evento.start.dateTime).toBe('2026-08-10T08:00:00');
+    expect(evento.end.dateTime).toBe('2026-08-10T10:00:00');
+    expect(evento).not.toHaveProperty('location');
+    expect(evento.description).toBe('X');
   });
 
   it('a primeira aula é a do primeiro dia da semana certo dentro do período', () => {
