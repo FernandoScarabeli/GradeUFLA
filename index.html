@@ -6,17 +6,35 @@
     <meta name="theme-color" content="#121216" />
     <meta
       name="description"
-      content="Sistema inteligente de montagem de grade horária da UFLA - organize suas matérias, evite conflitos e otimize seus horários"
+      content="Monte sua grade horária da UFLA sem conflito de horário, respeitando pré-requisitos e o limite de créditos. Escolha o curso, marque o que já cursou e arraste as matérias."
     />
+    <link rel="canonical" href="https://gradeufla.com.br/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:site_name" content="GradeUFLA" />
+    <meta property="og:url" content="https://gradeufla.com.br/" />
+    <meta property="og:title" content="GradeUFLA · Monte sua grade horária da UFLA" />
+    <meta property="og:description" content="Monte sua grade da UFLA sem conflito de horário, respeitando pré-requisitos e o limite de créditos." />
+    <meta property="og:image" content="https://gradeufla.com.br/logo512.png" />
+    <meta name="twitter:card" content="summary" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/logo192.png" />
     <link rel="manifest" href="/manifest.json" />
-    <title>GradeUFLA</title>
+    <title>GradeUFLA · Monte sua grade horária da UFLA</title>
   </head>
   <body>
     <noscript>Você precisa habilitar o JavaScript para usar o GradeUFLA.</noscript>
-    <div id="root"></div>
+    <!-- Texto pros buscadores e pra quem abre antes do JavaScript carregar; o React substitui ao montar. -->
+    <div id="root">
+      <main style="max-width: 560px; margin: 0 auto; padding: 30vh 24px 0; text-align: center; color: #eaeaea; font-family: system-ui, sans-serif">
+        <h1 style="font-size: 2rem; margin: 0 0 12px">GradeUFLA</h1>
+        <p style="color: #9a9a9a; line-height: 1.5; margin: 0">
+          Monte sua grade horária da UFLA sem conflito de horário, respeitando pré-requisitos e o limite de 32 créditos.
+          Escolha o curso, a matriz e o semestre, marque o que já cursou e monte a semana com as turmas reais do SIG.
+        </p>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
