@@ -11,7 +11,9 @@ import CalendarBoard from '../Calendar/CalendarBoard';
 import { CREDIT_WARN, gerarHorarios, getCorMateria } from '../Calendar/calendarUtils';
 import { buildCalendarOccupancy } from '../Calendar/useCalendarDrag';
 import useCalendarExport from '../Calendar/useCalendarExport';
-import BottomSheet from './BottomSheet';
+import useGoogleCalendarExport from '../../hooks/useGoogleCalendarExport';
+import BottomSheet, { SheetHead } from './BottomSheet';
+import GoogleExportForm from '../GoogleExport/GoogleExportForm';
 import { AddSheetContent, DetailSheetContent, TurmaSheetContent } from './GradeSheets';
 import Snackbar, { useSnackbar } from './Snackbar';
 import {
@@ -60,6 +62,7 @@ export default function MobileGrade({
   const manterScrollRef = useRef(false);
   const toqueRef = useRef(null);
   const titleId = `m-sheet-${useId().replace(/:/g, '')}`;
+  const gcalTitleId = `m-gcal-${useId().replace(/:/g, '')}`;
 
   const allMateriasList = useMemo(() => [
     ...Object.values(materiasPorSemestre || {}).flat(),
@@ -101,6 +104,12 @@ export default function MobileGrade({
     materiasAprovadas,
     materiasMinimoConfirmadas: minimoConfirmados,
     triggerToast
+  });
+  const googleExport = useGoogleCalendarExport({
+    materiasNoCalendario,
+    materiasAprovadas,
+    materiasMinimoConfirmadas: minimoConfirmados,
+    notificar: triggerToast
   });
   const ocupacao = useMemo(() => buildCalendarOccupancy(materiasNoCalendario), [materiasNoCalendario]);
 
@@ -318,6 +327,18 @@ export default function MobileGrade({
           <button type="button" aria-pressed={vista === 'dia'} onClick={() => { setSlide(null); setVista('dia'); }}>Dia</button>
           <button type="button" aria-pressed={vista === 'semana'} onClick={() => setVista('semana')}>Semana</button>
         </div>
+        {googleExport.disponivel && (
+          <button
+            className="m-iconbtn"
+            type="button"
+            onClick={() => { fecharSnack(); googleExport.abrir(); }}
+            disabled={googleExport.exportando}
+            aria-busy={googleExport.exportando}
+            aria-label="Exportar pro Google Agenda"
+          >
+            <i className="fi fi-br-calendar-arrow-up" aria-hidden="true" />
+          </button>
+        )}
         <button className="m-iconbtn" type="button" onClick={baixar} aria-label="Baixar imagem da grade">
           <i className="fi fi-br-download" aria-hidden="true" />
         </button>
@@ -464,6 +485,17 @@ export default function MobileGrade({
 
       <BottomSheet open={sheet.aberto} onClose={fecharSheet} titleId={titleId}>
         {conteudoSheet}
+      </BottomSheet>
+
+      <BottomSheet open={googleExport.aberto} onClose={googleExport.fechar} titleId={gcalTitleId}>
+        <SheetHead titleId={gcalTitleId} title="Exportar pro Google Agenda" onClose={googleExport.fechar} />
+        <GoogleExportForm
+          variante="mobile"
+          periodoInicial={googleExport.periodoInicial}
+          exportando={googleExport.exportando}
+          onExportar={googleExport.exportar}
+          onCancelar={googleExport.fechar}
+        />
       </BottomSheet>
 
       {/* Grade de 7 colunas usada só para gerar o PNG, igual à do desktop. */}

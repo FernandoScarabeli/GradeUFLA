@@ -29,6 +29,7 @@ span[class*=" fi-br-"]::before {
 .fi-br-bookmark::before { content: "\f28b"; }
 .fi-br-broom::before { content: "\f2f3"; }
 .fi-br-bullseye-pointer::before { content: "\f308"; }
+.fi-br-calendar-arrow-up::before { content: "\f321"; }
 .fi-br-check-circle::before { content: "\f3c5"; }
 .fi-br-check::before { content: "\f3c9"; }
 .fi-br-cross-circle::before { content: "\f4f7"; }

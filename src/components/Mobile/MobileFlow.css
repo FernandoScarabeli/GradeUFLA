@@ -63,6 +63,7 @@
 }
 .m-iconbtn i { display: flex; }
 .m-iconbtn:active { background: var(--surface-2); }
+.m-iconbtn:disabled { opacity: 0.5; cursor: progress; }
 
 .m-main {
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;

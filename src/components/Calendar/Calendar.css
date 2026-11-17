@@ -504,11 +504,17 @@
   margin: 0 auto;
 }
 
-/* Download button positioned at top-right of the title container */
-.calendar__download {
+/* Ações (Google Agenda + PNG) no canto superior direito do título */
+.calendar__actions {
   position: absolute;
   right: 8px;
   top: 0px;
+  display: flex;
+  gap: 8px;
+}
+
+.calendar__download,
+.calendar__download-like {
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.06);
   color: var(--color-text);
@@ -522,9 +528,12 @@
   transition: all 0.12s ease;
 }
 
-.calendar__download i { font-size: 1rem; }
+.calendar__download i,
+.calendar__download-like i { font-size: 1rem; }
 
-.calendar__download:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.35); }
+.calendar__download:hover,
+.calendar__download-like:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.35); }
+.calendar__download-like:disabled { opacity: 0.6; cursor: progress; }
 
 /* Popup flutuante das turmas */
 .calendar__turmas-popup {
@@ -1097,8 +1106,9 @@
     font-size: 1.2rem;
   }
 
-  .calendar__download {
+  .calendar__actions {
     position: static;
+    justify-content: center;
     margin: 0 auto;
   }
 
@@ -1298,7 +1308,7 @@
   margin: 0 auto;
 }
 
-.calendar__wrapper.capturing .calendar__download {
+.calendar__wrapper.capturing .calendar__actions {
   display: none !important;
 }
 

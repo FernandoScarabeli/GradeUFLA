@@ -1,0 +1,57 @@
+.gcal-modal { width: 460px; }
+
+.gcal-form__lead {
+  margin: 0 0 14px;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.gcal-form__lead strong { color: var(--color-text); }
+
+.gcal-form__datas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.gcal-form__datas label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.gcal-form__datas input {
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 400;
+  color-scheme: dark;
+}
+
+.gcal-form__datas input:focus-visible {
+  outline: 2px solid var(--color-tropical-mint);
+  outline-offset: 1px;
+}
+
+.gcal-form__erro {
+  margin: 12px 0 0;
+  color: #ff8a94;
+  font-size: 0.88rem;
+}
+
+.gcal-form .minimo-modal-actions { margin-top: 18px; }
+.gcal-form .minimo-modal-actions .btn { padding: 10px 18px; }
+.gcal-form button:disabled { opacity: 0.6; cursor: progress; transform: none; box-shadow: none; }
+
+/* Mobile: dentro da gaveta */
+.gcal-form--mobile { padding: 0 16px 16px; }
+.gcal-form--mobile .gcal-form__lead { font-size: 14px; color: var(--muted); }
+.gcal-form--mobile .gcal-form__datas input { font-size: 16px; } /* evita zoom no iOS */
+.gcal-form--mobile .m-actions { margin-top: 18px; }
