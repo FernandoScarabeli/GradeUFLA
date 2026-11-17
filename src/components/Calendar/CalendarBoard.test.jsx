@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import CalendarBoard from './CalendarBoard';
 
-test('renderiza a grade extraída e mantém o download conectado', () => {
+test('renderiza a grade extraída e mantém o download no menu Compartilhar', () => {
   const onDownload = vi.fn();
   const materia = { codigo: 'GCC001', nome: 'Teste', turmaId: 'A' };
 
@@ -10,7 +10,9 @@ test('renderiza a grade extraída e mantém o download conectado', () => {
       wrapperRef={{ current: null }}
       tableRef={{ current: null }}
       semestreAtual={3}
-      onDownload={onDownload}
+      itensCompartilhar={[
+        { id: 'png', texto: 'Baixar imagem (PNG)', rotulo: 'Baixar PNG da grade', icone: 'fi-br-download', acao: onDownload }
+      ]}
       isDragging={false}
       draggingMateria={null}
       selectedTurmaIndex={null}
@@ -34,6 +36,7 @@ test('renderiza a grade extraída e mantém o download conectado', () => {
   expect(screen.getByRole('columnheader', { name: 'Hora' })).toHaveAttribute('scope', 'col');
   expect(screen.getByRole('rowheader', { name: '07:00' })).toHaveAttribute('scope', 'row');
   expect(screen.getByRole('button', { name: 'Ver informações de Teste' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Compartilhar' }));
   const download = screen.getByRole('button', { name: 'Baixar PNG da grade' });
   expect(download).toHaveAttribute('aria-label', 'Baixar PNG da grade');
   fireEvent.click(download);

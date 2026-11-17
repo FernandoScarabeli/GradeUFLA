@@ -95,9 +95,24 @@ test.describe('fluxo mobile com dados controlados', () => {
     await expect(page.getByRole('button', { name: /Projeto Integrador ANP, sábado/ })).toBeVisible();
 
     const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Compartilhar' }).click();
     await page.getByRole('button', { name: 'Baixar imagem da grade' }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe('grade-2semestre.png');
+  });
+
+  test('busca por professor e destaca a turma dele', async ({ page }) => {
+    await page.getByRole('button', { name: 'Adicionar matéria' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Adicionar matéria' });
+    await sheet.getByRole('searchbox', { name: 'Buscar matéria' }).fill('alexandre');
+    const resultado = sheet.getByRole('button', { name: /Programação Web/ });
+    await expect(resultado).toContainText('Prof. Alexandre Alves de Carvalho');
+    await expect(sheet.getByRole('button', { name: /Banco de Dados/ })).toHaveCount(0);
+
+    await resultado.click();
+    const turmas = page.getByRole('dialog', { name: 'Programação Web' });
+    await expect(turmas.getByRole('radio', { name: /Turma A/ })).toContainText('professor buscado');
+    await expect(turmas.getByRole('radio', { name: /Turma B/ })).not.toContainText('professor buscado');
   });
 
   test('não deixa passar de 32 créditos', async ({ page }) => {
@@ -160,6 +175,7 @@ test.describe('fluxo mobile com dados controlados', () => {
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.getByRole('tabpanel', { name: 'Aulas de segunda' })).toContainText('Turma A · 08:00–09:40 · PV1-101');
 
+    await page.getByRole('button', { name: 'Compartilhar' }).click();
     await page.getByRole('button', { name: 'Exportar pro Google Agenda' }).click();
     const sheet = page.getByRole('dialog', { name: 'Exportar pro Google Agenda' });
     await sheet.getByLabel('De').fill('2026-08-10');
@@ -206,6 +222,30 @@ test('mobile: salva no navegador, alterna planos e recupera ao trocar de semestr
   await page.getByRole('button', { name: 'Montar minha grade' }).click();
   await expect(aba('A')).toHaveAccessibleName('Plano A, 4 créditos');
   await expect(aba('B')).toHaveAccessibleName('Plano B, 4 créditos');
+});
+
+test('mobile: abre link compartilhado e mostra erro amigável pra link corrompido', async ({ page, context, isMobile }) => {
+  test.skip(!isMobile, 'Fluxo exclusivo do celular.');
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await stubGoogleCalendar(page);
+  await completeMobileFlow(page);
+  await addSubject(page, 'Programação Web', 'A');
+  await page.getByRole('button', { name: 'Compartilhar' }).click();
+  await page.getByRole('button', { name: 'Copiar link da grade' }).click();
+  const link = await page.evaluate(() => navigator.clipboard.readText());
+
+  const outra = await context.newPage();
+  await useAcademicFixtures(outra);
+  await outra.goto(link);
+  await expect(outra.getByText('Grade compartilhada de 2026/2')).toBeVisible({ timeout: 30_000 });
+  await expect(outra.getByText('NOR201')).toBeVisible();
+
+  const quebrada = await context.newPage();
+  await useAcademicFixtures(quebrada);
+  await quebrada.goto('/#g=zLixoQueNaoAbre');
+  await expect(quebrada.getByText(/Link de grade inválido/)).toBeVisible({ timeout: 30_000 });
+  // Segue o fluxo normal: este navegador já tem grade salva, então volta pra ela.
+  await expect(quebrada.getByRole('heading', { name: 'Minha grade' })).toBeVisible();
 });
 
 test('mobile: 1º semestre vai direto para a grade com dados reais', async ({ page, isMobile }) => {

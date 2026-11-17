@@ -16,6 +16,9 @@ import useGoogleCalendarExport from '../../hooks/useGoogleCalendarExport';
 import BottomSheet, { SheetHead } from './BottomSheet';
 import GoogleExportForm from '../GoogleExport/GoogleExportForm';
 import PlanosBar from '../Planos/PlanosBar';
+import useCompartilharLink from '../Compartilhar/useCompartilharLink';
+import { ListaCompartilhar, montarItensCompartilhar } from '../Compartilhar/CompartilharMenu';
+import { ACADEMIC_TERM } from '../../config/academicTerm';
 import { AddSheetContent, DetailSheetContent, TurmaSheetContent } from './GradeSheets';
 import Snackbar, { useSnackbar } from './Snackbar';
 import {
@@ -51,7 +54,8 @@ export default function MobileGrade({
   onRestaurar,
   onConfirmMinimo,
   onVoltar,
-  planosBar = null
+  planosBar = null,
+  onGerarLink
 }) {
   const [vista, setVista] = useState('dia');
   const [dia, setDia] = useState(diaInicial);
@@ -66,6 +70,8 @@ export default function MobileGrade({
   const toqueRef = useRef(null);
   const titleId = `m-sheet-${useId().replace(/:/g, '')}`;
   const gcalTitleId = `m-gcal-${useId().replace(/:/g, '')}`;
+  const shareTitleId = `m-share-${useId().replace(/:/g, '')}`;
+  const [compartilhando, setCompartilhando] = useState(false);
 
   const allMateriasList = useMemo(() => [
     ...Object.values(materiasPorSemestre || {}).flat(),
@@ -113,6 +119,19 @@ export default function MobileGrade({
     materiasAprovadas,
     materiasMinimoConfirmadas: minimoConfirmados,
     notificar: triggerToast
+  });
+  const { copiarLink, compartilhar, podeCompartilhar } = useCompartilharLink({
+    gerarLink: onGerarLink,
+    periodo: ACADEMIC_TERM,
+    notificar: triggerToast
+  });
+  const itensCompartilhar = montarItensCompartilhar({
+    baixarPng: baixar,
+    rotuloPng: 'Baixar imagem da grade',
+    google: { ...googleExport, abrir: () => { fecharSnack(); googleExport.abrir(); } },
+    copiarLink,
+    compartilhar,
+    podeCompartilhar
   });
   const ocupacao = useMemo(() => buildCalendarOccupancy(materiasNoCalendario), [materiasNoCalendario]);
 
@@ -286,6 +305,7 @@ export default function MobileGrade({
         onClose={fecharSheet}
         onConfirm={adicionar}
         onConfirmarPrereq={(materia, codigos) => codigos.forEach(codigo => onConfirmMinimo(codigo))}
+        professorDestaque={sheet.voltar === 'add' ? addEstado.busca : ''}
       />
     );
   } else if (sheet.tipo === 'detail' && materiasNoCalendario[sheet.codigo]) {
@@ -330,20 +350,14 @@ export default function MobileGrade({
           <button type="button" aria-pressed={vista === 'dia'} onClick={() => { setSlide(null); setVista('dia'); }}>Dia</button>
           <button type="button" aria-pressed={vista === 'semana'} onClick={() => setVista('semana')}>Semana</button>
         </div>
-        {googleExport.disponivel && (
-          <button
-            className="m-iconbtn"
-            type="button"
-            onClick={() => { fecharSnack(); googleExport.abrir(); }}
-            disabled={googleExport.exportando}
-            aria-busy={googleExport.exportando}
-            aria-label="Exportar pro Google Agenda"
-          >
-            <i className="fi fi-br-calendar-arrow-up" aria-hidden="true" />
-          </button>
-        )}
-        <button className="m-iconbtn" type="button" onClick={baixar} aria-label="Baixar imagem da grade">
-          <i className="fi fi-br-download" aria-hidden="true" />
+        <button
+          className="m-iconbtn"
+          type="button"
+          onClick={() => { fecharSnack(); setCompartilhando(true); }}
+          aria-haspopup="dialog"
+          aria-label="Compartilhar"
+        >
+          <i className="fi fi-br-share" aria-hidden="true" />
         </button>
       </header>
 
@@ -503,6 +517,15 @@ export default function MobileGrade({
         {conteudoSheet}
       </BottomSheet>
 
+      <BottomSheet open={compartilhando} onClose={() => setCompartilhando(false)} titleId={shareTitleId}>
+        <SheetHead titleId={shareTitleId} title="Compartilhar" onClose={() => setCompartilhando(false)} />
+        <ListaCompartilhar
+          itens={itensCompartilhar}
+          className="compartilhar__lista compartilhar__lista--sheet"
+          onEscolher={() => setCompartilhando(false)}
+        />
+      </BottomSheet>
+
       <BottomSheet open={googleExport.aberto} onClose={googleExport.fechar} titleId={gcalTitleId}>
         <SheetHead titleId={gcalTitleId} title="Exportar pro Google Agenda" onClose={googleExport.fechar} />
         <GoogleExportForm
@@ -519,7 +542,6 @@ export default function MobileGrade({
         <CalendarBoard
           wrapperRef={exportRef}
           semestreAtual={semestreAtual}
-          onDownload={nada}
           isDragging={false}
           draggingMateria={null}
           selectedTurmaIndex={null}

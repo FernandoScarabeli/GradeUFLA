@@ -10,6 +10,7 @@ import {
   normalizarHora,
   verificarConflitoMateria
 } from '../../domain/gradeRules';
+import { turmaDoProfessor } from '../../domain/professores';
 import useAccessibleDialog from '../../hooks/useAccessibleDialog';
 import './Modal.css';
 
@@ -30,7 +31,8 @@ const MateriaModal = ({
   onShowToast,
   materiasNoCalendario = {},
   materiasMinimoConfirmadas = [],
-  allMateriasList = []
+  allMateriasList = [],
+  professorDestaque = ''
 }) => {
   // Ref para prevenir múltiplas chamadas rápidas (debounce simples)
   const isProcessingRef = useRef(false);
@@ -186,11 +188,12 @@ const MateriaModal = ({
 
               const conflito = getConflitoParaTurma(turma);
               const conflitoLabel = conflito.temConflito ? descreverConflito(conflito) : '';
+              const doProfessorFiltrado = turmaDoProfessor(turma, professorDestaque);
 
               return (
                 <div
                   key={turma.id}
-                  className={`turma-item ${!turmaDisponivel ? 'turma-item--disabled' : ''} ${conflito.temConflito ? 'turma-item--conflito' : ''} ${turmaAtual ? 'turma-item--selecionada' : ''}`}
+                  className={`turma-item ${!turmaDisponivel ? 'turma-item--disabled' : ''} ${conflito.temConflito ? 'turma-item--conflito' : ''} ${turmaAtual ? 'turma-item--selecionada' : ''} ${doProfessorFiltrado ? 'turma-item--professor' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     if (!turmaDisponivel || conflito.temConflito || turmaAtual) return;
@@ -210,7 +213,10 @@ const MateriaModal = ({
                 >
                   <span className="turma-id">Turma {turma.id}</span>
                   {turma.professor && (
-                    <span className="turma-professor">{formatarNomeProprio(turma.professor)}</span>
+                    <span className="turma-professor">
+                      {formatarNomeProprio(turma.professor)}
+                      {doProfessorFiltrado && <span className="turma-professor__filtro"> · professor do filtro</span>}
+                    </span>
                   )}
                   <div className="turma-horarios">
                     {(turma.horarios && turma.horarios.length > 0) ? (

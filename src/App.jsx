@@ -12,6 +12,8 @@ import {
   SetupWizard
 } from './components';
 import { MobileGrade, MobileHistorico, MobileSetup, MobileShell } from './components/Mobile';
+import GradeCompartilhada from './components/GradeCompartilhada/GradeCompartilhada';
+import { ACADEMIC_TERM } from './config/academicTerm';
 import useIsMobileFlow from './hooks/useIsMobileFlow';
 import usePersistedSetup from './hooks/usePersistedSetup';
 
@@ -19,6 +21,7 @@ import usePersistedSetup from './hooks/usePersistedSetup';
 import {
   ensureCsvLoaded,
   getCsvLoadState,
+  getCursoInfo,
   getEletivas,
   getMateriasPorSemestre,
   getNomeMateriaOuCodigo,
@@ -44,8 +47,17 @@ import {
   mensagensRemovidas,
   PLANOS,
   planosVazios,
+  reidratarGrade,
   reidratarSetup
 } from './state/gradeSalva';
+import {
+  codificarGrade,
+  decodificarGrade,
+  extrairToken,
+  LinkInvalidoError,
+  paraGradeSalva,
+  urlDaGrade
+} from './state/linkGrade';
 
 // Styles
 import './styles/global.css';
@@ -59,8 +71,13 @@ const ETAPAS = {
   INICIO: 'inicio',
   SETUP: 'setup',
   HISTORICO: 'historico',
-  MONTAGEM: 'montagem'
+  MONTAGEM: 'montagem',
+  // Grade aberta por um link #g= (só leitura)
+  COMPARTILHADA: 'compartilhada'
 };
+
+// Etapas que usam o fluxo próprio do celular (MobileShell).
+const ETAPAS_MOBILE = [ETAPAS.SETUP, ETAPAS.HISTORICO, ETAPAS.MONTAGEM];
 
 const DIAS_SEMANA_NOMES = {
   0: 'Domingo',
@@ -111,10 +128,15 @@ function App() {
     }));
   }, [planoAtivo]);
   const [modalMateria, setModalMateria] = useState(null);
+  // Filtro por professor do desktop: filtra a lista e destaca as turmas dele no modal.
+  const [professorFiltro, setProfessorFiltro] = useState('');
   const csvLoadState = useCsvLoadState();
   // No celular, setup, histórico e grade usam o fluxo próprio (a tela inicial é a mesma).
   const isMobile = useIsMobileFlow();
-  const fluxoMobile = isMobile && etapa !== ETAPAS.INICIO;
+  const fluxoMobile = isMobile && ETAPAS_MOBILE.includes(etapa);
+  // Link #g= lido uma vez no carregamento; a URL é limpa logo em seguida.
+  const [tokenLink] = useState(() => extrairToken(window.location.hash));
+  const [compartilhada, setCompartilhada] = useState(null);
   const [setupInitialStep, setSetupInitialStep] = useState(1);
 
   // Hook de toast para notificações
@@ -149,18 +171,24 @@ function App() {
   // Marca a entrada atual do histórico como tela inicial (uma vez, no carregamento).
   useEffect(() => {
     try {
-      window.history.replaceState({ etapa: ETAPAS.INICIO }, document.title, window.location.href);
+      // Sem o #g=: recarregar não reabre a grade compartilhada.
+      const url = tokenLink
+        ? `${window.location.pathname}${window.location.search}`
+        : window.location.href;
+      window.history.replaceState({ etapa: ETAPAS.INICIO }, document.title, url);
     } catch {
       // Alguns ambientes (ex.: iframes restritos) não permitem alterar o histórico.
     }
-  }, []);
+  }, [tokenLink]);
 
   // Integração com histórico do navegador (botões voltar/avançar)
   useEffect(() => {
     // Handler para quando usuário clica em voltar/avançar
     const handlePopState = (event) => {
       if (event.state && event.state.etapa) {
-        const novaEtapa = event.state.etapa;
+        let novaEtapa = event.state.etapa;
+        // A grade compartilhada só existe na memória da página.
+        if (novaEtapa === ETAPAS.COMPARTILHADA && !compartilhada) novaEtapa = ETAPAS.INICIO;
 
         // Se está voltando para SETUP de HISTORICO ou MONTAGEM, começar na última etapa (seleção de semestre)
         if (novaEtapa === ETAPAS.SETUP && (etapa === ETAPAS.HISTORICO || etapa === ETAPAS.MONTAGEM)) {
@@ -185,7 +213,7 @@ function App() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [etapa]);
+  }, [etapa, compartilhada]);
 
   // Função helper para mudar de etapa e atualizar o histórico
   const navegarParaEtapa = (novaEtapa) => {
@@ -233,35 +261,37 @@ function App() {
     setPlanoAtivo(estado.planoAtivo);
     setCombinacaoCarregada(chaveSetup(curso, matriz, semestre));
     PLANOS.forEach(id => {
-      mensagensRemovidas(id, estado.removidas[id], getNomeMateriaOuCodigo)
+      mensagensRemovidas(`do Plano ${id}`, estado.removidas[id], getNomeMateriaOuCodigo)
         .forEach(mensagem => addToast(mensagem, 'warning'));
     });
+  };
+
+  // Combinação nunca usada: começa com os semestres anteriores aprovados e planos vazios.
+  const iniciarCombinacao = (curso, matriz, semestre) => {
+    setCursoSelecionado(curso);
+    setMatrizSelecionada(matriz);
+    setSemestreAtual(semestre);
+
+    // Por padrão, marca todas as matérias de semestres anteriores como aprovadas
+    const materiasCurso = getMateriasPorSemestre(curso, undefined, matriz);
+    const materiasAnteriores = [];
+    for (let i = 1; i < semestre; i++) {
+      const materias = materiasCurso[i] || [];
+      materias.forEach(m => materiasAnteriores.push(m.codigo));
+    }
+    setMateriasAprovadas(materiasAnteriores);
+    // Confirmações manuais valem apenas para a combinação em que foram feitas.
+    setMinimoConfirmados([]);
+    setPlanos(planosVazios());
+    setPlanoAtivo('A');
+    setCombinacaoCarregada(chaveSetup(curso, matriz, semestre));
   };
 
   const handleSetupComplete = ({ curso, matriz, semestre }) => {
     // Voltar pra uma combinação já usada recupera o histórico e os planos dela.
     const salvo = persistencia.lerSetup(curso, matriz, semestre);
-    if (salvo) {
-      aplicarSetupSalvo(curso, matriz, semestre, salvo);
-    } else {
-      setCursoSelecionado(curso);
-      setMatrizSelecionada(matriz);
-      setSemestreAtual(semestre);
-
-      // Por padrão, marca todas as matérias de semestres anteriores como aprovadas
-      const materiasCurso = getMateriasPorSemestre(curso, undefined, matriz);
-      const materiasAnteriores = [];
-      for (let i = 1; i < semestre; i++) {
-        const materias = materiasCurso[i] || [];
-        materias.forEach(m => materiasAnteriores.push(m.codigo));
-      }
-      setMateriasAprovadas(materiasAnteriores);
-      // Confirmações manuais valem apenas para a combinação em que foram feitas.
-      setMinimoConfirmados([]);
-      setPlanos(planosVazios());
-      setPlanoAtivo('A');
-      setCombinacaoCarregada(chaveSetup(curso, matriz, semestre));
-    }
+    if (salvo) aplicarSetupSalvo(curso, matriz, semestre, salvo);
+    else iniciarCombinacao(curso, matriz, semestre);
 
     // No celular, quem está no 1º semestre não tem histórico para marcar.
     navegarParaEtapa(isMobile && semestre === 1 ? ETAPAS.MONTAGEM : ETAPAS.HISTORICO);
@@ -300,12 +330,85 @@ function App() {
     handleGetStartedClick();
   };
 
-  // Recarregou a página: assim que o CSV chega, volta pra onde o aluno estava.
+  // ---------- grade compartilhada por link (#g=) ----------
+  const abrirGradeCompartilhada = dados => {
+    const catalogo = catalogoDe(dados.curso, dados.matriz);
+    if (catalogo.size === 0) {
+      addToast('Esse link é de um curso ou matriz que não está no site agora.', 'error');
+      return false;
+    }
+    const { grade, removidas } = reidratarGrade(paraGradeSalva(dados.turmas), catalogo);
+    setCompartilhada({ ...dados, grade, removidas });
+    navegarParaEtapa(ETAPAS.COMPARTILHADA);
+    return true;
+  };
+
+  const gerarLinkGrade = useCallback(async () => {
+    if (!combinacaoCarregada || Object.keys(materiasNoCalendario).length === 0) return null;
+    const token = await codificarGrade({
+      curso: cursoSelecionado,
+      matriz: matrizSelecionada,
+      semestre: semestreAtual,
+      periodo: ACADEMIC_TERM,
+      grade: materiasNoCalendario
+    });
+    return urlDaGrade(token);
+  }, [combinacaoCarregada, cursoSelecionado, matrizSelecionada, materiasNoCalendario, semestreAtual]);
+
+  // Planos do aluno na combinação da grade compartilhada (pra escolher onde importar).
+  const planosDestino = compartilhada
+    ? (() => {
+        const salvo = persistencia.lerSetup(compartilhada.curso, compartilhada.matriz, compartilhada.semestre);
+        return PLANOS.map(id => {
+          const quantidade = Object.keys(salvo?.planos?.[id] || {}).length;
+          return { id, quantidade, vazio: quantidade === 0 };
+        });
+      })()
+    : [];
+
+  const handleUsarComoPlano = id => {
+    if (!compartilhada || !PLANOS.includes(id)) return;
+    const { curso, matriz, semestre, grade } = compartilhada;
+    const salvo = persistencia.lerSetup(curso, matriz, semestre);
+    if (salvo) aplicarSetupSalvo(curso, matriz, semestre, salvo);
+    else iniciarCombinacao(curso, matriz, semestre);
+    // Roda depois do setPlanos acima (mesmo lote): só troca o plano escolhido.
+    setPlanos(atual => ({ ...atual, [id]: grade }));
+    setPlanoAtivo(id);
+    setCompartilhada(null);
+    setSetupInitialStep(3);
+    navegarParaEtapa(ETAPAS.MONTAGEM);
+    addToast(`Grade compartilhada salva no seu Plano ${id}.`, 'success');
+  };
+
+  const handleFecharCompartilhada = () => {
+    setCompartilhada(null);
+    if (!continuarDeOndeParei()) navegarParaEtapa(ETAPAS.INICIO);
+  };
+
+  // Recarregou a página (ou abriu um link): assim que o CSV chega, vai pro lugar certo.
   const restauracaoFeitaRef = useRef(false);
   useEffect(() => {
     if (restauracaoFeitaRef.current || csvLoadState.status !== 'success') return;
     restauracaoFeitaRef.current = true;
-    if (etapa === ETAPAS.INICIO) continuarDeOndeParei();
+    if (etapa !== ETAPAS.INICIO) return;
+    if (!tokenLink) {
+      continuarDeOndeParei();
+      return;
+    }
+    decodificarGrade(tokenLink)
+      .then(dados => {
+        if (!abrirGradeCompartilhada(dados)) continuarDeOndeParei();
+      })
+      .catch(erro => {
+        addToast(
+          erro instanceof LinkInvalidoError && erro.message !== new LinkInvalidoError().message
+            ? erro.message
+            : 'Link de grade inválido ou incompleto. Peça pra pessoa copiar de novo.',
+          'error'
+        );
+        continuarDeOndeParei();
+      });
     // Só uma vez, na primeira carga bem-sucedida do CSV.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [csvLoadState.status]);
@@ -477,7 +580,8 @@ function App() {
       )}
       <div className="app-container">
         <ToastContainer toasts={toasts} removeToast={removeToast} />
-        {!fluxoMobile && <AboutMe />}
+        {/* No celular o botão flutuante cobriria a grade compartilhada. */}
+        {!fluxoMobile && !(isMobile && etapa === ETAPAS.COMPARTILHADA) && <AboutMe />}
         {fluxoMobile && (
           <MobileShell>
             {etapa === ETAPAS.SETUP && (
@@ -519,6 +623,7 @@ function App() {
                 onRemoveMateria={handleRemoveMateria}
                 onRestaurar={handleRestaurarCalendario}
                 planosBar={planosBar}
+                onGerarLink={gerarLinkGrade}
                 onConfirmMinimo={handleConfirmMinimo}
                 onVoltar={handleVoltarParaHistorico}
               />
@@ -534,6 +639,17 @@ function App() {
               onComecarDoZero={handleComecarDoZero}
               csvLoadStatus={csvLoadState.status}
               onRetryCsv={handleRetryCsv}
+            />
+          )}
+          {etapa === ETAPAS.COMPARTILHADA && compartilhada && (
+            <GradeCompartilhada
+              compartilhada={compartilhada}
+              cursoNome={getCursoInfo(compartilhada.curso)?.nome || compartilhada.curso}
+              periodoAtual={ACADEMIC_TERM}
+              avisos={mensagensRemovidas('da grade compartilhada', compartilhada.removidas, getNomeMateriaOuCodigo)}
+              planosDestino={planosDestino}
+              onUsarComoPlano={handleUsarComoPlano}
+              onFechar={handleFecharCompartilhada}
             />
           )}
           {!fluxoMobile && etapa === ETAPAS.SETUP && (
@@ -577,6 +693,9 @@ function App() {
               onConfirmMinimo={handleConfirmMinimo}
               onMateriaClick={setModalMateria}
               planosBar={planosBar}
+              onGerarLink={gerarLinkGrade}
+              professorFiltro={professorFiltro}
+              onProfessorFiltro={setProfessorFiltro}
             />
           )}
         </div>
@@ -591,6 +710,7 @@ function App() {
             materiasMinimoConfirmadas={minimoConfirmados}
             allMateriasList={allMateriasList}
             onShowToast={showToast}
+            professorDestaque={fluxoMobile ? '' : professorFiltro}
           />
         )}
       </div>

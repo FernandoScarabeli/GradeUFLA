@@ -184,6 +184,15 @@
   margin-bottom: 6px;
 }
 
+.turma-item--professor:not(.turma-item--selecionada) {
+  border: 1px solid rgba(249, 220, 92, 0.6);
+}
+
+.turma-professor__filtro {
+  color: var(--color-royal-gold);
+  font-weight: 600;
+}
+
 .turma-professor {
   display: block;
   margin: -2px 0 8px;

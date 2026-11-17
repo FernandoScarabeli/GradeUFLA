@@ -8,6 +8,9 @@ import GoogleExportModal from '../GoogleExport/GoogleExportModal';
 import useCalendarDrag from './useCalendarDrag';
 import useCalendarExport from './useCalendarExport';
 import useGoogleCalendarExport from '../../hooks/useGoogleCalendarExport';
+import useCompartilharLink from '../Compartilhar/useCompartilharLink';
+import { montarItensCompartilhar } from '../Compartilhar/CompartilharMenu';
+import { ACADEMIC_TERM } from '../../config/academicTerm';
 import {
   gerarHorarios,
   getCorMateria as calcularCorMateria,
@@ -28,7 +31,10 @@ const Calendar = forwardRef(({
   onShowToast,
   materiasMinimoConfirmadas = [],
   onConfirmMinimo,
-  planosBar = null
+  planosBar = null,
+  onGerarLink,
+  professorFiltro = '',
+  onProfessorFiltro
 }, ref) => {
   const [minimoModal, setMinimoModal] = useState({
     open: false,
@@ -125,6 +131,19 @@ const Calendar = forwardRef(({
     notificar: triggerToast
   });
 
+  const { copiarLink, compartilhar, podeCompartilhar } = useCompartilharLink({
+    gerarLink: onGerarLink,
+    periodo: ACADEMIC_TERM,
+    notificar: triggerToast
+  });
+  const itensCompartilhar = montarItensCompartilhar({
+    baixarPng: handleDownloadPNG,
+    google: googleExport,
+    copiarLink,
+    compartilhar,
+    podeCompartilhar
+  });
+
   const openForteConfirm = (prereqs, parent) => {
     setMinimoModal({
       open: true,
@@ -212,15 +231,15 @@ const Calendar = forwardRef(({
           onOpenForte={openForteConfirm}
           onOpenMinimo={openMinimoConfirm}
           onOpenCoreq={openCoreqConfirm}
+          professorFiltro={professorFiltro}
+          onProfessorFiltro={onProfessorFiltro}
         />
 
         <CalendarBoard
           wrapperRef={wrapperRef}
           tableRef={calendarTableRef}
           semestreAtual={semestreAtual}
-          onDownload={handleDownloadPNG}
-          onExportGoogle={googleExport.disponivel ? googleExport.abrir : null}
-          exportandoGoogle={googleExport.exportando}
+          itensCompartilhar={itensCompartilhar}
           isDragging={isDragging}
           draggingMateria={draggingMateria}
           selectedTurmaIndex={selectedTurmaIndex}

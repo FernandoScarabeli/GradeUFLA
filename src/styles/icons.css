@@ -40,11 +40,13 @@ span[class*=" fi-br-"]::before {
 .fi-br-exchange::before { content: "\f5ed"; }
 .fi-br-info::before { content: "\f813"; }
 .fi-br-lock::before { content: "\f8dd"; }
+.fi-br-link::before { content: "\f8c2"; }
 .fi-br-menu-dots::before { content: "\f92d"; }
 .fi-br-menu-dots-vertical::before { content: "\f92c"; }
 .fi-br-plus::before { content: "\fab1"; }
 .fi-br-rocket::before { content: "\fb69"; }
 .fi-br-search-alt::before { content: "\fbbc"; }
 .fi-br-search::before { content: "\fbc0"; }
+.fi-br-share::before { content: "\fbda"; }
 .fi-br-trash::before { content: "\fe19"; }
 .fi-br-triangle-warning::before { content: "\fe35"; }

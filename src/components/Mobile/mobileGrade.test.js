@@ -2,6 +2,7 @@ import {
   avaliarTurma,
   blocosDoDia,
   casaBusca,
+  professorDaBusca,
   diaInicial,
   listasParaAdicionar,
   primeiroDiaDaMateria,
@@ -32,6 +33,14 @@ test('busca ignora acentos e maiúsculas, por nome ou código', () => {
   expect(casaBusca(m, 'gcc2')).toBe(true);
   expect(casaBusca(m, 'redes')).toBe(false);
   expect(casaBusca(m, '  ')).toBe(true);
+});
+
+test('busca também casa o professor e diz quando foi por ele', () => {
+  const m = { nome: 'Programação Web', codigo: 'NOR201', turmas: [{ id: 'A', professor: 'ALEXANDRE ALVES DE CARVALHO' }] };
+  expect(casaBusca(m, 'alexandre')).toBe(true);
+  expect(professorDaBusca(m, 'alexandre')).toBe('Alexandre Alves de Carvalho');
+  expect(professorDaBusca(m, 'web')).toBeNull();
+  expect(casaBusca({ nome: 'X', codigo: 'Y', turmas: [{ id: 'A' }] }, 'alexandre')).toBe(false);
 });
 
 test('blocos do dia vêm ordenados e, no sábado de turma ANP, só a hora alocada', () => {

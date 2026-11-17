@@ -1,5 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'motion/react';
 import './Planos.css';
+
+// Traço que marca o plano ativo: desliza de uma aba pra outra (movimento na tela -> ease-in-out).
+const DESLIZE = { duration: 0.2, ease: [0.77, 0, 0.175, 1] };
+// Menu ancorado no botão: entra com ease-out forte e sai mais rápido.
+const MENU_ENTRA = { duration: 0.15, ease: [0.23, 1, 0.32, 1] };
+const MENU_SAI = { duration: 0.1, ease: [0.23, 1, 0.32, 1] };
 
 const MENU_FECHADO = null;
 
@@ -19,7 +26,9 @@ export default function PlanosBar({
   const [menu, setMenu] = useState(MENU_FECHADO);
   const wrapRef = useRef(null);
   const botaoMenuRef = useRef(null);
-  const menuId = `planos-menu-${useId().replace(/:/g, '')}`;
+  const uid = useId().replace(/:/g, '');
+  const menuId = `planos-menu-${uid}`;
+  const reduzir = useReducedMotion();
   const atual = planos.find(plano => plano.id === ativo);
   const outros = planos.filter(plano => plano.id !== ativo);
 
@@ -128,6 +137,7 @@ export default function PlanosBar({
 
   return (
     <div className={`planos planos--${variante}`} ref={wrapRef}>
+      <LayoutGroup id={`planos-${uid}`}>
       <div className="planos__tabs" role="tablist" aria-label="Planos" onKeyDown={tecladoAbas}>
         {planos.map(plano => (
           <button
@@ -143,9 +153,18 @@ export default function PlanosBar({
           >
             <span className="planos__tab-nome">{variante === 'mobile' ? plano.id : `Plano ${plano.id}`}</span>
             <span className="planos__tab-cr">{plano.creditos} cr</span>
+            {plano.id === ativo && (
+              <motion.span
+                layoutId="indicador"
+                className="planos__indicador"
+                aria-hidden="true"
+                transition={reduzir ? { duration: 0 } : DESLIZE}
+              />
+            )}
           </button>
         ))}
       </div>
+      </LayoutGroup>
 
       <div className="planos__menu-wrap">
         <button
@@ -161,8 +180,13 @@ export default function PlanosBar({
         >
           <i className="fi fi-br-menu-dots" aria-hidden="true" />
         </button>
+        <AnimatePresence>
         {menu !== MENU_FECHADO && (
-          <div
+          <motion.div
+            key="menu"
+            initial={{ opacity: 0, scale: reduzir ? 1 : 0.97, y: reduzir ? 0 : -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0, transition: MENU_ENTRA }}
+            exit={{ opacity: 0, scale: reduzir ? 1 : 0.97, transition: MENU_SAI }}
             id={menuId}
             className="planos__menu"
             role="group"
@@ -175,8 +199,9 @@ export default function PlanosBar({
             }}
           >
             {conteudoMenu}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </div>
     </div>
   );
