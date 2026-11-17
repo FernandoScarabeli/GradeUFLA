@@ -81,7 +81,8 @@ test.describe('fluxos críticos com dados controlados', () => {
     await expect(page.locator('.calendar__credits')).toContainText('8');
 
     const downloadPromise = page.waitForEvent('download');
-    await page.locator('.calendar__download').click();
+    await page.getByRole('button', { name: 'Compartilhar' }).click();
+    await page.getByRole('button', { name: 'Baixar PNG da grade' }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe('grade-2semestre.png');
   });
@@ -143,6 +144,34 @@ test.describe('fluxos críticos com dados controlados', () => {
     await expect(page.getByRole('tab', { name: /^Plano A,/ })).toHaveAccessibleName('Plano A, 4 créditos');
   });
 
+  test('copia o link da grade, abre só pra ver e importa como Plano B', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await addSubject(page, 'Programação Web', 'A');
+    await addSubject(page, 'Projeto Integrador ANP', 'ANP');
+
+    await page.getByRole('button', { name: 'Compartilhar' }).click();
+    await page.getByRole('button', { name: 'Copiar link da grade' }).click();
+    await expect(page.getByText('Link copiado.')).toBeVisible();
+    const link = await page.evaluate(() => navigator.clipboard.readText());
+    expect(link).toMatch(/#g=[jz][A-Za-z0-9_-]+$/);
+    expect(link.length).toBeLessThan(300);
+
+    const outra = await context.newPage();
+    await useAcademicFixtures(outra);
+    await outra.goto(link);
+    await expect(outra.getByText('Grade compartilhada de 2026/2')).toBeVisible({ timeout: 30_000 });
+    await expect(outra.getByRole('heading', { name: /2º semestre · Sistemas de Informação/ })).toBeVisible();
+    await expect(outra.getByRole('listitem', { name: /Programação Web, segunda das 8h às 10h, turma A/ })).toBeVisible();
+    // A URL é limpa: recarregar não reimporta.
+    expect(new URL(outra.url()).hash).toBe('');
+
+    await outra.getByRole('button', { name: 'Usar como meu plano…' }).click();
+    await outra.getByRole('button', { name: 'Usar como meu Plano B (vazio)' }).click();
+    await expect(outra.getByRole('tab', { name: /^Plano B,/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(outra.getByRole('tab', { name: /^Plano B,/ })).toHaveAccessibleName('Plano B, 8 créditos');
+    await expect(outra.getByRole('tab', { name: /^Plano A,/ })).toHaveAccessibleName('Plano A, 8 créditos');
+  });
+
   test('bloqueia seleção acima do limite de 32 créditos', async ({ page }) => {
     await addSubject(page, 'Projeto de 20 Créditos', 'A');
     await addSubject(page, 'Projeto de 12 Créditos', 'A');
@@ -193,6 +222,7 @@ test.describe('fluxos críticos com dados controlados', () => {
     await addSubject(page, 'Programação Web', 'A');
     await expect(page.locator('.calendar__legend')).toContainText('Turma A · Alexandre Alves de Carvalho');
 
+    await page.getByRole('button', { name: 'Compartilhar' }).click();
     await page.getByRole('button', { name: 'Exportar pro Google Agenda' }).click();
     const dialog = page.getByRole('dialog', { name: 'Exportar pro Google Agenda' });
     await dialog.getByLabel('De').fill('2026-08-10');

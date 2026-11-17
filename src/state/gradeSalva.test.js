@@ -190,7 +190,7 @@ describe('reidratarSetup', () => {
 
 describe('mensagensRemovidas', () => {
   test('uma mensagem por motivo, sem "undefined"', () => {
-    const mensagens = mensagensRemovidas('B', [
+    const mensagens = mensagensRemovidas('do Plano B', [
       { codigo: 'NOR201', nome: 'Programação Web', motivo: 'turma' },
       { codigo: 'SUMIU1', nome: null, motivo: 'turma' },
       { codigo: 'CON202', nome: 'Banco de Dados', motivo: 'conflito' }
@@ -199,9 +199,9 @@ describe('mensagensRemovidas', () => {
       '2 matérias saíram do Plano B porque a turma não existe mais: Programação Web, Matéria Antiga.',
       'Banco de Dados saiu do Plano B porque agora conflita com outra matéria.'
     ]);
-    expect(mensagensRemovidas('A', [{ codigo: 'X1', nome: null, motivo: 'turma' }], () => null))
+    expect(mensagensRemovidas('do Plano A', [{ codigo: 'X1', nome: null, motivo: 'turma' }], () => null))
       .toEqual(['X1 saiu do Plano A porque a turma não existe mais.']);
-    expect(mensagensRemovidas('A', [])).toEqual([]);
+    expect(mensagensRemovidas('do Plano A', [])).toEqual([]);
   });
 });
 

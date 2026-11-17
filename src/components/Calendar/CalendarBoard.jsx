@@ -3,6 +3,7 @@ import { ACADEMIC_TERM, DATA_UPDATED_AT } from '../../config/academicTerm';
 import { formatarNomeProprio } from '../../domain/gradeRules';
 import { DIAS_SEMANA } from './calendarUtils';
 import PlanosBar from '../Planos/PlanosBar';
+import CompartilharMenu from '../Compartilhar/CompartilharMenu';
 
 function TurmasPopup({ materia, selectedTurmaIndex, verificarConflito, getCorTurma }) {
   if (!materia) return null;
@@ -200,9 +201,7 @@ function CalendarBoard({
   wrapperRef,
   tableRef,
   semestreAtual,
-  onDownload,
-  onExportGoogle = null,
-  exportandoGoogle = false,
+  itensCompartilhar = null,
   isDragging,
   draggingMateria,
   selectedTurmaIndex,
@@ -224,31 +223,11 @@ function CalendarBoard({
     <div className="calendar__wrapper" ref={wrapperRef}>
       <div className="calendar__title-container">
         <h2 className="calendar__title">Minha Grade - {semestreAtual}º Semestre</h2>
-        <div className="calendar__actions">
-          {onExportGoogle && (
-            <button
-              className="calendar__download-like calendar__gcal"
-              onClick={onExportGoogle}
-              disabled={exportandoGoogle}
-              aria-busy={exportandoGoogle}
-              title="Exportar pro Google Agenda"
-              aria-label="Exportar pro Google Agenda"
-              type="button"
-            >
-              <i className="fi fi-br-calendar-arrow-up" aria-hidden="true" />
-              <span>{exportandoGoogle ? 'Exportando…' : 'Google Agenda'}</span>
-            </button>
-          )}
-          <button
-            className="calendar__download"
-            onClick={onDownload}
-            title="Baixar PNG da grade"
-            aria-label="Baixar PNG da grade"
-            type="button"
-          >
-            <i className="fi fi-br-download" aria-hidden="true" />
-          </button>
-        </div>
+        {itensCompartilhar && (
+          <div className="calendar__actions">
+            <CompartilharMenu itens={itensCompartilhar} />
+          </div>
+        )}
         {isDragging && (
           <TurmasPopup
             materia={draggingMateria}

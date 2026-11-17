@@ -145,15 +145,15 @@ const MOTIVOS = {
   creditos: `passaria de ${CREDIT_MAX} créditos`
 };
 
-/** Avisos legíveis sobre o que saiu de um plano, um por motivo. */
-export function mensagensRemovidas(plano, removidas, nomeDe = codigo => codigo) {
+/** Avisos legíveis sobre o que saiu de uma grade (onde = "do Plano A"), um por motivo. */
+export function mensagensRemovidas(onde, removidas, nomeDe = codigo => codigo) {
   return Object.entries(MOTIVOS).flatMap(([motivo, texto]) => {
     const nomes = (removidas || [])
       .filter(item => item.motivo === motivo)
       .map(item => item.nome || nomeDe(item.codigo) || item.codigo);
     if (nomes.length === 0) return [];
-    if (nomes.length === 1) return [`${nomes[0]} saiu do Plano ${plano} porque ${texto}.`];
-    return [`${nomes.length} matérias saíram do Plano ${plano} porque ${texto}: ${nomes.join(', ')}.`];
+    if (nomes.length === 1) return [`${nomes[0]} saiu ${onde} porque ${texto}.`];
+    return [`${nomes.length} matérias saíram ${onde} porque ${texto}: ${nomes.join(', ')}.`];
   });
 }
 
