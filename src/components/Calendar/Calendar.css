@@ -1500,6 +1500,24 @@
   transition: all 0.2s;
 }
 
+.calendar__time-filter-row input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.calendar__time-filter-row input:focus {
+  outline: none;
+  border-color: var(--color-tropical-mint);
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .calendar__time-filter-row select:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.2);

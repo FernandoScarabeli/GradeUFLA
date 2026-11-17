@@ -307,6 +307,7 @@ export default function MobileGrade({
         onClose={fecharSheet}
         onConfirm={adicionar}
         onConfirmarPrereq={(materia, codigos) => codigos.forEach(codigo => onConfirmMinimo(codigo))}
+        professorDestaque={sheet.voltar === 'add' ? addEstado.busca : ''}
       />
     );
   } else if (sheet.tipo === 'detail' && materiasNoCalendario[sheet.codigo]) {

@@ -172,6 +172,19 @@ test.describe('fluxos críticos com dados controlados', () => {
     await expect(outra.getByRole('tab', { name: /^Plano A,/ })).toHaveAccessibleName('Plano A, 8 créditos');
   });
 
+  test('filtra por professor e destaca a turma dele', async ({ page }) => {
+    await page.getByRole('button', { name: /Filtrar Matérias/ }).click();
+    await page.getByLabel('Professor:').fill('alexandre');
+    const lista = page.locator('.calendar__sidebar, aside').first();
+    await expect(page.getByRole('button', { name: 'Ver informações de Programação Web' }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Ver informações de Banco de Dados' })).toHaveCount(0);
+    await expect(lista).toContainText('Mostrando matérias com turmas de “alexandre”');
+
+    const dialog = await openSubject(page, 'Programação Web');
+    await expect(dialog.getByText('· professor do filtro')).toHaveCount(1);
+    await expect(dialog.locator('.turma-item--professor')).toContainText('Turma A');
+  });
+
   test('bloqueia seleção acima do limite de 32 créditos', async ({ page }) => {
     await addSubject(page, 'Projeto de 20 Créditos', 'A');
     await addSubject(page, 'Projeto de 12 Créditos', 'A');

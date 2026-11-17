@@ -33,7 +33,9 @@ const Calendar = forwardRef(({
   onConfirmMinimo,
   planosBar = null,
   onGerarLink,
-  onComparar
+  onComparar,
+  professorFiltro = '',
+  onProfessorFiltro
 }, ref) => {
   const [minimoModal, setMinimoModal] = useState({
     open: false,
@@ -231,6 +233,8 @@ const Calendar = forwardRef(({
           onOpenForte={openForteConfirm}
           onOpenMinimo={openMinimoConfirm}
           onOpenCoreq={openCoreqConfirm}
+          professorFiltro={professorFiltro}
+          onProfessorFiltro={onProfessorFiltro}
         />
 
         <CalendarBoard

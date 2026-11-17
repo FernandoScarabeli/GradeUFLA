@@ -58,4 +58,19 @@ describe('filtro da sidebar do calendário', () => {
     expect(materiaSeEncaixaNoFiltro(materia, filtro({ horaInicio: 10, horaFim: 10 }))).toBe(false);
     expect(materiaSeEncaixaNoFiltro(materia, filtro({ horaInicio: 11, horaFim: 10 }))).toBe(false);
   });
+
+  test('professor restringe as turmas consideradas pelos outros critérios', () => {
+    const materia = {
+      turmas: [
+        { id: 'A', professor: 'ANA SOUZA', horarios: [{ dia: 2, inicio: 8, fim: 10 }] },
+        { id: 'B', professor: 'JOÃO DA SILVA', horarios: [{ dia: 4, inicio: 14, fim: 16 }] }
+      ]
+    };
+    expect(materiaSeEncaixaNoFiltro(materia, filtro({ professor: 'ana' }))).toBe(true);
+    expect(materiaSeEncaixaNoFiltro(materia, filtro({ professor: 'maria' }))).toBe(false);
+    expect(materiaSeEncaixaNoFiltro(materia, filtro({ professor: 'ana', dia: 2 }))).toBe(true);
+    // A turma de quinta é do João, não da Ana.
+    expect(materiaSeEncaixaNoFiltro(materia, filtro({ professor: 'ana', dia: 4 }))).toBe(false);
+    expect(materiaSeEncaixaNoFiltro(materia, filtro({ professor: '  ' }))).toBe(true);
+  });
 });

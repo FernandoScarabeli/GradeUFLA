@@ -10,6 +10,7 @@ import {
   normalizeDia,
   parseHour
 } from './calendarUtils';
+import { professoresDasMaterias, turmaDoProfessor } from '../../domain/professores';
 
 const INITIAL_FILTER = {
   ativo: false,
@@ -17,21 +18,27 @@ const INITIAL_FILTER = {
   horaInicio: null,
   horaFim: null,
   isAnp: false,
-  creditos: null
+  creditos: null,
+  professor: ''
 };
 
 export const materiaSeEncaixaNoFiltro = (materia, filtroHorario) => {
   if (!filtroHorario.ativo) return true;
   if (!materia.turmas || materia.turmas.length === 0) return false;
 
-  const { dia, horaInicio, horaFim, isAnp, creditos } = filtroHorario;
+  const { dia, horaInicio, horaFim, isAnp, creditos, professor } = filtroHorario;
+  // Com professor no filtro, os demais critérios valem só para as turmas dele.
+  const turmas = professor?.trim()
+    ? materia.turmas.filter(turma => turmaDoProfessor(turma, professor))
+    : materia.turmas;
+  if (turmas.length === 0) return false;
 
   if (horaInicio !== null && horaFim !== null && horaFim <= horaInicio) return false;
 
   if (creditos !== null && (materia.creditos || 0) !== creditos) return false;
 
   if (isAnp) {
-    return materia.turmas.some(turma => {
+    return turmas.some(turma => {
       if (!isAnpTurma(turma)) return false;
       const horarios = turma.horarios || [];
       const temHorarioNaoSabado = horarios.some(horario => {
@@ -44,7 +51,7 @@ export const materiaSeEncaixaNoFiltro = (materia, filtroHorario) => {
 
   if (dia === null && horaInicio === null && horaFim === null) return true;
 
-  return materia.turmas.some(turma => (turma.horarios || []).some(horario => {
+  return turmas.some(turma => (turma.horarios || []).some(horario => {
     const horarioDia = normalizeDia(horario.dia);
     const inicio = parseHour(horario.inicio);
     const fim = parseHour(horario.fim);
@@ -92,7 +99,9 @@ function CalendarSidebar({
   onMateriaClick,
   onOpenForte,
   onOpenMinimo,
-  onOpenCoreq
+  onOpenCoreq,
+  professorFiltro = '',
+  onProfessorFiltro
 }) {
   const [mostrarEletivas, setMostrarEletivas] = useState(false);
   const [eletivasQuery, setEletivasQuery] = useState('');
@@ -121,7 +130,10 @@ function CalendarSidebar({
   if (totalCreditos >= CREDIT_MAX) creditClass = 'calendar__credits--danger';
   else if (totalCreditos > CREDIT_WARN) creditClass = 'calendar__credits--warn';
 
-  const matchesFilter = materia => materiaSeEncaixaNoFiltro(materia, filtroHorario);
+  // Só aparece com o CSV novo (turmas com professor).
+  const professores = professoresDasMaterias(allMateriasList);
+  const filtroCompleto = { ...filtroHorario, professor: professorFiltro };
+  const matchesFilter = materia => materiaSeEncaixaNoFiltro(materia, filtroCompleto);
   const renderEmptyFilterWarning = sectionName => <EmptyFilterWarning sectionName={sectionName} />;
   const renderMateriaCard = (materia, tipo = 'obrigatoria') => (
     <SubjectCard
@@ -172,7 +184,11 @@ function CalendarSidebar({
       <div className="calendar__time-filter">
         <button
           className={`calendar__time-filter-toggle ${filtroHorario.ativo ? 'active' : ''}`}
-          onClick={() => setFiltroHorario({ ...filtroHorario, ativo: !filtroHorario.ativo })}
+          onClick={() => {
+            // Fechar o filtro também tira o destaque de professor nas turmas.
+            if (filtroHorario.ativo) onProfessorFiltro?.('');
+            setFiltroHorario({ ...filtroHorario, ativo: !filtroHorario.ativo });
+          }}
           title="Filtrar matérias por horário ou créditos"
         >
           <i className="fi fi-br-search-alt"></i>
@@ -282,10 +298,31 @@ function CalendarSidebar({
               </select>
             </div>
 
-            {(filtroHorario.dia !== null || filtroHorario.horaInicio !== null || filtroHorario.horaFim !== null || filtroHorario.isAnp || filtroHorario.creditos !== null) && (
+            {professores.length > 0 && (
+              <div className="calendar__time-filter-row">
+                <label htmlFor="filter-professor">Professor:</label>
+                <input
+                  id="filter-professor"
+                  type="search"
+                  list="filter-professor-lista"
+                  value={professorFiltro}
+                  placeholder="Nome do professor"
+                  autoComplete="off"
+                  onChange={event => onProfessorFiltro?.(event.target.value)}
+                />
+                <datalist id="filter-professor-lista">
+                  {professores.map(nome => <option key={nome} value={nome} />)}
+                </datalist>
+              </div>
+            )}
+
+            {(filtroHorario.dia !== null || filtroHorario.horaInicio !== null || filtroHorario.horaFim !== null || filtroHorario.isAnp || filtroHorario.creditos !== null || professorFiltro.trim()) && (
               <button
                 className="calendar__time-filter-clear"
-                onClick={() => setFiltroHorario({ ...INITIAL_FILTER, ativo: true })}
+                onClick={() => {
+                  setFiltroHorario({ ...INITIAL_FILTER, ativo: true });
+                  onProfessorFiltro?.('');
+                }}
                 title="Limpar filtros"
               >
                 <i className="fi fi-br-broom"></i>
@@ -304,7 +341,9 @@ function CalendarSidebar({
                 ? 'Mostrando apenas matérias exclusivamente ANP'
                 : filtroHorario.dia !== null || filtroHorario.horaInicio !== null || filtroHorario.horaFim !== null
                   ? `Mostrando matérias com turmas disponíveis${filtroHorario.dia !== null ? ` às ${DIAS_SEMANA[filtroHorario.dia]}s` : ''}${filtroHorario.horaInicio !== null ? ` das ${String(filtroHorario.horaInicio).padStart(2, '0')}:00` : ''}${filtroHorario.horaFim !== null ? ` às ${String(filtroHorario.horaFim).padStart(2, '0')}:00` : ''}`
-                  : 'Configure o filtro acima para buscar matérias em horários específicos ou exclusivamente ANP'}
+                  : professorFiltro.trim()
+                    ? `Mostrando matérias com turmas de “${professorFiltro.trim()}”`
+                    : 'Configure o filtro acima para buscar matérias em horários específicos ou exclusivamente ANP'}
             </p>
           </div>
         )}

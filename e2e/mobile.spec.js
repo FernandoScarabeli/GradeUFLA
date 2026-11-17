@@ -101,6 +101,20 @@ test.describe('fluxo mobile com dados controlados', () => {
     expect(download.suggestedFilename()).toBe('grade-2semestre.png');
   });
 
+  test('busca por professor e destaca a turma dele', async ({ page }) => {
+    await page.getByRole('button', { name: 'Adicionar matéria' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Adicionar matéria' });
+    await sheet.getByRole('searchbox', { name: 'Buscar matéria' }).fill('alexandre');
+    const resultado = sheet.getByRole('button', { name: /Programação Web/ });
+    await expect(resultado).toContainText('Prof. Alexandre Alves de Carvalho');
+    await expect(sheet.getByRole('button', { name: /Banco de Dados/ })).toHaveCount(0);
+
+    await resultado.click();
+    const turmas = page.getByRole('dialog', { name: 'Programação Web' });
+    await expect(turmas.getByRole('radio', { name: /Turma A/ })).toContainText('professor buscado');
+    await expect(turmas.getByRole('radio', { name: /Turma B/ })).not.toContainText('professor buscado');
+  });
+
   test('não deixa passar de 32 créditos', async ({ page }) => {
     await addSubject(page, 'Projeto de 20 Créditos', 'A');
     await addSubject(page, 'Projeto de 12 Créditos', 'A');

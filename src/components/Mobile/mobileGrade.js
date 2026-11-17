@@ -11,22 +11,27 @@ import {
   SATURDAY_INDEX,
   verificarConflitoMateria
 } from '../../domain/gradeRules';
+import { professorDaMateriaQueCasa, semAcento } from '../../domain/professores';
 
 export const DIAS_GRADE = [1, 2, 3, 4, 5, 6];
 export const HORA_INICIO = 7;
 export const HORA_FIM = 23;
 export const DIAS_LONGOS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 
-const semAcento = valor => String(valor ?? '')
-  .normalize('NFD')
-  .replace(/[̀-ͯ]/g, '')
-  .toLowerCase();
-
-/** Busca sem diferenciar maiúsculas nem acentos, por nome ou código. */
+/** Busca sem diferenciar maiúsculas nem acentos, por nome, código ou professor (CSV novo). */
 export const casaBusca = (materia, termo) => {
-  const q = semAcento(termo).trim();
+  const q = semAcento(termo);
   if (!q) return true;
-  return semAcento(materia?.nome).includes(q) || semAcento(materia?.codigo).includes(q);
+  return semAcento(materia?.nome).includes(q)
+    || semAcento(materia?.codigo).includes(q)
+    || professorDaMateriaQueCasa(materia, q) !== null;
+};
+
+/** Professor que fez a matéria aparecer na busca (quando não foi pelo nome nem pelo código). */
+export const professorDaBusca = (materia, termo) => {
+  const q = semAcento(termo);
+  if (!q || semAcento(materia?.nome).includes(q) || semAcento(materia?.codigo).includes(q)) return null;
+  return professorDaMateriaQueCasa(materia, q);
 };
 
 export const pad2 = hora => String(hora).padStart(2, '0');

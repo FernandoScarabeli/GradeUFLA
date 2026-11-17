@@ -132,6 +132,8 @@ function App() {
     }));
   }, [planoAtivo]);
   const [modalMateria, setModalMateria] = useState(null);
+  // Filtro por professor do desktop: filtra a lista e destaca as turmas dele no modal.
+  const [professorFiltro, setProfessorFiltro] = useState('');
   const csvLoadState = useCsvLoadState();
   // No celular, setup, histórico e grade usam o fluxo próprio (a tela inicial é a mesma).
   const isMobile = useIsMobileFlow();
@@ -780,6 +782,8 @@ function App() {
               planosBar={planosBar}
               onGerarLink={gerarLinkGrade}
               onComparar={() => abrirComparacao()}
+              professorFiltro={professorFiltro}
+              onProfessorFiltro={setProfessorFiltro}
             />
           )}
         </div>
@@ -794,6 +798,7 @@ function App() {
             materiasMinimoConfirmadas={minimoConfirmados}
             allMateriasList={allMateriasList}
             onShowToast={showToast}
+            professorDestaque={fluxoMobile ? '' : professorFiltro}
           />
         )}
       </div>

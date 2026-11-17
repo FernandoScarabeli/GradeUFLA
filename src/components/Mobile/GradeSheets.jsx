@@ -24,8 +24,10 @@ import {
   horaAnpPrevista,
   materiaComTurma,
   pad2,
+  professorDaBusca,
   situacaoMateria
 } from './mobileGrade';
+import { professoresDasMaterias, turmaDoProfessor } from '../../domain/professores';
 
 const nomes = codigos => codigos.map(getNomeMateriaOuCodigo).join(', ');
 
@@ -82,6 +84,8 @@ export function ConfirmarPrereq({ situacao, onNao, onSim }) {
 
 export function AddSheetContent({ titleId, listas, estado, setEstado, contexto, onPick, onConfirmarPrereq, onClose }) {
   const lista = listas[estado.aba].filter(materia => casaBusca(materia, estado.busca));
+  // CSV antigo não tem professor: a busca continua só por matéria e código.
+  const temProfessor = professoresDasMaterias(Object.values(listas).flat()).length > 0;
 
   return (
     <>
@@ -104,7 +108,7 @@ export function AddSheetContent({ titleId, listas, estado, setEstado, contexto, 
         <i className="fi fi-br-search" aria-hidden="true" />
         <input
           type="search"
-          placeholder="Buscar matéria ou código"
+          placeholder={temProfessor ? 'Buscar matéria, código ou professor' : 'Buscar matéria ou código'}
           aria-label="Buscar matéria"
           value={estado.busca}
           onChange={event => setEstado(atual => ({ ...atual, busca: event.target.value, confirmar: null }))}
@@ -119,6 +123,7 @@ export function AddSheetContent({ titleId, listas, estado, setEstado, contexto, 
           const situacao = situacaoMateria(materia, contexto);
           const linha = textoSituacao(situacao);
           const turmas = (materia.turmas || []).length;
+          const professor = professorDaBusca(materia, estado.busca);
           return (
             <div key={materia.codigo} className="m-mrow-group">
               <button
@@ -134,6 +139,7 @@ export function AddSheetContent({ titleId, listas, estado, setEstado, contexto, 
                     <code>{materia.codigo}</code>
                     {materia.semestreOriginal ? ` · ${materia.semestreOriginal}º sem` : ''}
                     {` · ${turmas} turma${turmas === 1 ? '' : 's'}`}
+                    {professor && ` · Prof. ${professor}`}
                   </span>
                   {linha && (
                     <span className="m-mrow__state" data-tone={linha.classe}>
@@ -213,7 +219,8 @@ export function TurmaSheetContent({
   onBack,
   onClose,
   onConfirm,
-  onConfirmarPrereq
+  onConfirmarPrereq,
+  professorDestaque = ''
 }) {
   const [selecionada, setSelecionada] = useState(null);
   const naGrade = materiasNoCalendario[materia.codigo];
@@ -257,9 +264,11 @@ export function TurmaSheetContent({
           {turmas.map(item => {
             const avaliacao = avaliarTurma(materia, item, materiasNoCalendario);
             const { chips, anp } = chipsDaTurma(item);
+            const destaque = turmaDoProfessor(item, professorDestaque);
             return (
               <button
                 key={item.id}
+                data-destaque={destaque || undefined}
                 className="m-turma"
                 type="button"
                 role="radio"
@@ -271,7 +280,12 @@ export function TurmaSheetContent({
                   <span className="m-turma__id">Turma {item.id}</span>
                   {avaliacao.atual && <span className="m-turma__cur">Na sua grade</span>}
                 </span>
-                {item.professor && <span className="m-turma__prof">{formatarNomeProprio(item.professor)}</span>}
+                {item.professor && (
+                  <span className="m-turma__prof">
+                    {formatarNomeProprio(item.professor)}
+                    {destaque && <span className="m-turma__busca"> · professor buscado</span>}
+                  </span>
+                )}
                 <span className="m-chips">
                   {chips.map(chip => <span key={chip} className="m-chip">{chip}</span>)}
                   {anp && <span className="m-chip"><span className="m-badge">ANP</span> 1h no sábado</span>}
