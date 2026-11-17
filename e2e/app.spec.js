@@ -308,3 +308,43 @@ test('desativa partículas e rotação de texto com reduced motion', async ({ pa
   await page.waitForTimeout(2_200);
   await expect(page.locator('.text-rotate')).toContainText('prática');
 });
+
+test('compara a grade com a de um amigo e mostra os horários livres em comum', async ({ page, context, isMobile }) => {
+  test.skip(isMobile, 'No celular a comparação vira lista; coberta em mobile.spec.js.');
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+  // O "amigo" é o link do Plano B; você fica no Plano A.
+  await completeFlow(page);
+  await page.getByRole('tab', { name: /^Plano B,/ }).click();
+  await addSubject(page, 'Banco de Dados', 'A');
+  await page.getByRole('button', { name: 'Compartilhar' }).click();
+  await page.getByRole('button', { name: 'Copiar link da grade' }).click();
+  await expect(page.getByText('Link copiado.')).toBeVisible();
+  const linkAmigo = await page.evaluate(() => navigator.clipboard.readText());
+  expect(linkAmigo).toContain('#g=');
+
+  await page.getByRole('tab', { name: /^Plano A,/ }).click();
+  await addSubject(page, 'Programação Web', 'A');
+  await page.getByRole('button', { name: 'Compartilhar' }).click();
+  await page.getByRole('button', { name: 'Comparar horários com amigos' }).click();
+  await expect(page.getByRole('heading', { name: 'Horários livres em comum' })).toBeVisible();
+  await expect(page.getByText('Adicione o link de pelo menos um amigo pra comparar.')).toBeVisible();
+
+  await page.getByLabel('Link da grade').fill('isso não é link');
+  await page.getByRole('button', { name: 'Adicionar' }).click();
+  await expect(page.getByRole('alert')).toContainText('Cole o link de uma grade');
+
+  await page.getByLabel('Link da grade').fill(linkAmigo);
+  await page.getByLabel('Apelido (opcional)').fill('Ana');
+  await page.getByRole('button', { name: 'Adicionar' }).click();
+
+  // Programação Web: seg 8–10 (você); Banco de Dados: seg 9–11 (Ana).
+  await expect(page.getByRole('cell', { name: 'segunda 8h: ocupado (Você)' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'segunda 9h: ocupado (Você, Ana)' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'segunda 10h: ocupado (Ana)' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'segunda 11h: livre pra todos' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Livres juntos' })).toContainText('Seg 7h–8h, 11h–23h');
+
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page.getByRole('heading', { name: /Minha Grade - 2º Semestre/ })).toBeVisible();
+});
