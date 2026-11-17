@@ -1,11 +1,16 @@
+import { useState } from 'react';
 import RotatingText from '../RotatingText';
 import './Hero.css';
 
 const Hero = ({
   onGetStartedClick,
   csvLoadStatus = 'success',
-  onRetryCsv
+  onRetryCsv,
+  temGradeSalva = false,
+  onContinuarSalvo,
+  onComecarDoZero
 }) => {
+  const [confirmandoZero, setConfirmandoZero] = useState(false);
   const isLoading = csvLoadStatus === 'idle' || csvLoadStatus === 'loading';
   const hasError = csvLoadStatus === 'error';
 
@@ -35,15 +40,56 @@ const Hero = ({
           Tenha uma visão clara do seu semestre, organizando suas disciplinas de forma simples, eficiente e sem complicações.
         </p>
 
-        <div className="hero-buttons">
-          <button
-            className="btn-primary"
-            onClick={onGetStartedClick}
-            disabled={csvLoadStatus !== 'success'}
-          >
-            {isLoading ? 'Carregando dados…' : 'Vamos lá'}
-          </button>
-        </div>
+        {!temGradeSalva && (
+          <div className="hero-buttons">
+            <button
+              className="btn-primary"
+              onClick={onGetStartedClick}
+              disabled={csvLoadStatus !== 'success'}
+            >
+              {isLoading ? 'Carregando dados…' : 'Vamos lá'}
+            </button>
+          </div>
+        )}
+
+        {temGradeSalva && !confirmandoZero && (
+          <div className="hero-buttons">
+            <button
+              className="btn-primary"
+              type="button"
+              onClick={onContinuarSalvo}
+              disabled={csvLoadStatus !== 'success'}
+            >
+              {isLoading ? 'Carregando dados…' : 'Continuar de onde parei'}
+            </button>
+            <button
+              className="btn-secondary"
+              type="button"
+              onClick={() => setConfirmandoZero(true)}
+              disabled={csvLoadStatus !== 'success'}
+            >
+              Começar do zero
+            </button>
+          </div>
+        )}
+
+        {temGradeSalva && confirmandoZero && (
+          <div className="hero-confirm" role="group" aria-labelledby="hero-confirm-texto">
+            <p id="hero-confirm-texto">Isso apaga as grades salvas neste navegador. Quer mesmo começar do zero?</p>
+            <div className="hero-buttons">
+              <button
+                className="btn-primary"
+                type="button"
+                onClick={() => { setConfirmandoZero(false); onComecarDoZero?.(); }}
+              >
+                Apagar e começar
+              </button>
+              <button className="btn-secondary" type="button" onClick={() => setConfirmandoZero(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
 
         {isLoading && (
           <p className="hero-data-status" role="status">

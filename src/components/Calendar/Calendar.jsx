@@ -27,7 +27,8 @@ const Calendar = forwardRef(({
   onVoltar,
   onShowToast,
   materiasMinimoConfirmadas = [],
-  onConfirmMinimo
+  onConfirmMinimo,
+  planosBar = null
 }, ref) => {
   const [minimoModal, setMinimoModal] = useState({
     open: false,
@@ -235,6 +236,7 @@ const Calendar = forwardRef(({
           onMateriaClick={onMateriaClick}
           onCellHover={handleCellHover}
           materiasNoCalendario={materiasNoCalendario}
+          planosBar={planosBar ? { ...planosBar, onAviso: mensagem => triggerToast(mensagem, 'success') } : null}
         />
       </div>
 

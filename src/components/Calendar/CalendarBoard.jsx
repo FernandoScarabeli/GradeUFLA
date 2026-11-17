@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { ACADEMIC_TERM, DATA_UPDATED_AT } from '../../config/academicTerm';
 import { formatarNomeProprio } from '../../domain/gradeRules';
 import { DIAS_SEMANA } from './calendarUtils';
+import PlanosBar from '../Planos/PlanosBar';
 
 function TurmasPopup({ materia, selectedTurmaIndex, verificarConflito, getCorTurma }) {
   if (!materia) return null;
@@ -216,7 +217,8 @@ function CalendarBoard({
   onDragStartFromCalendar,
   onMateriaClick,
   onCellHover,
-  materiasNoCalendario
+  materiasNoCalendario,
+  planosBar = null
 }) {
   return (
     <div className="calendar__wrapper" ref={wrapperRef}>
@@ -256,6 +258,8 @@ function CalendarBoard({
           />
         )}
       </div>
+
+      {planosBar && <PlanosBar {...planosBar} variante="desktop" />}
 
       <CalendarGrid
         tableRef={tableRef}

@@ -86,6 +86,63 @@ test.describe('fluxos críticos com dados controlados', () => {
     expect(download.suggestedFilename()).toBe('grade-2semestre.png');
   });
 
+  test('salva no navegador: recarrega, mantém um plano por aba e recupera ao trocar de semestre', async ({ page }) => {
+    const creditos = page.locator('.calendar__credits');
+    const aba = plano => page.getByRole('tab', { name: new RegExp(`^Plano ${plano},`) });
+
+    await addSubject(page, 'Programação Web', 'A');
+    await expect(creditos).toHaveText('Créditos: 4');
+
+    await page.reload();
+    await expect(page.getByRole('heading', { name: /Minha Grade - 2º Semestre/ })).toBeVisible({ timeout: 30_000 });
+    await expect(creditos).toHaveText('Créditos: 4');
+    await expect(aba('A')).toHaveAttribute('aria-selected', 'true');
+    await expect(aba('A')).toHaveAccessibleName('Plano A, 4 créditos');
+
+    await aba('B').click();
+    await expect(creditos).toHaveText('Créditos: 0');
+    await addSubject(page, 'Programação Web', 'B');
+    await addSubject(page, 'Banco de Dados', 'A');
+    await expect(creditos).toHaveText('Créditos: 8');
+
+    await aba('A').click();
+    await expect(creditos).toHaveText('Créditos: 4');
+    await expect(page.locator('.calendar__legend')).toContainText('Programação Web - Turma A');
+
+    // Outro semestre começa vazio; voltar pro 2º recupera os dois planos.
+    await page.locator('.btn-voltar--calendar').click();
+    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    await chooseOption(page, 'Semestre', '1º Módulo');
+    await page.getByRole('button', { name: 'Finalizar' }).click();
+    await page.getByRole('button', { name: 'Continuar para Montagem' }).click();
+    await expect(page.getByRole('heading', { name: /Minha Grade - 1º Semestre/ })).toBeVisible();
+    await expect(creditos).toHaveText('Créditos: 0');
+
+    await page.locator('.btn-voltar--calendar').click();
+    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    await chooseOption(page, 'Semestre', '2º Módulo');
+    await page.getByRole('button', { name: 'Finalizar' }).click();
+    await page.getByRole('button', { name: 'Continuar para Montagem' }).click();
+    await expect(aba('A')).toHaveAccessibleName('Plano A, 4 créditos');
+    await expect(aba('B')).toHaveAccessibleName('Plano B, 8 créditos');
+  });
+
+  test('duplica e limpa um plano', async ({ page }) => {
+    const creditos = page.locator('.calendar__credits');
+    await addSubject(page, 'Programação Web', 'A');
+
+    await page.getByRole('button', { name: 'Opções do Plano A' }).click();
+    await page.getByRole('button', { name: 'Duplicar em Plano B' }).click();
+    await expect(page.getByRole('tab', { name: /^Plano B,/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(creditos).toHaveText('Créditos: 4');
+
+    await page.getByRole('button', { name: 'Opções do Plano B' }).click();
+    await page.getByRole('button', { name: 'Limpar Plano B' }).click();
+    await page.getByRole('button', { name: 'Limpar', exact: true }).click();
+    await expect(creditos).toHaveText('Créditos: 0');
+    await expect(page.getByRole('tab', { name: /^Plano A,/ })).toHaveAccessibleName('Plano A, 4 créditos');
+  });
+
   test('bloqueia seleção acima do limite de 32 créditos', async ({ page }) => {
     await addSubject(page, 'Projeto de 20 Créditos', 'A');
     await addSubject(page, 'Projeto de 12 Créditos', 'A');

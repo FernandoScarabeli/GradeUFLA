@@ -13,6 +13,7 @@ import {
 } from './components';
 import { MobileGrade, MobileHistorico, MobileSetup, MobileShell } from './components/Mobile';
 import useIsMobileFlow from './hooks/useIsMobileFlow';
+import usePersistedSetup from './hooks/usePersistedSetup';
 
 // Data
 import {
@@ -20,10 +21,13 @@ import {
   getCsvLoadState,
   getEletivas,
   getMateriasPorSemestre,
+  getNomeMateriaOuCodigo,
   retryCsvLoad,
   useCsvLoadState
 } from './data';
 import {
+  calcularTotalCreditos,
+  comHorarioAnp,
   CREDIT_MAX,
   excedeLimiteCreditos,
   findNextAnpHour,
@@ -33,9 +37,15 @@ import {
   isTurmaSelecionavel,
   normalizarDia,
   normalizarHora,
-  SATURDAY_INDEX,
   verificarConflitoMateria
 } from './domain/gradeRules';
+import {
+  chaveSetup,
+  mensagensRemovidas,
+  PLANOS,
+  planosVazios,
+  reidratarSetup
+} from './state/gradeSalva';
 
 // Styles
 import './styles/global.css';
@@ -62,6 +72,12 @@ const DIAS_SEMANA_NOMES = {
   6: 'Sábado'
 };
 
+/** Catálogo (código -> matéria) de obrigatórias e eletivas de um curso/matriz. */
+const catalogoDe = (curso, matriz) => new Map([
+  ...Object.values(getMateriasPorSemestre(curso, undefined, matriz) || {}).flat(),
+  ...(getEletivas(curso, matriz) || [])
+].map(materia => [materia.codigo, materia]));
+
 const formatarHorario = (horario) => {
   const dia = normalizarDia(horario?.dia);
   const diaNome = DIAS_SEMANA_NOMES[dia] || 'Dia desconhecido';
@@ -74,14 +90,26 @@ const formatarHorario = (horario) => {
 function App() {
   const calendarioRef = useRef(null);
 
-  // Ao recarregar a página o fluxo sempre recomeça na tela inicial.
+  // A combinação ativa (aprovadas, confirmações e planos A/B/C) fica salva no navegador.
+  // Ao recarregar, o aluno volta pra onde estava (histórico ou montagem); veja usePersistedSetup.
   const [etapa, setEtapa] = useState(ETAPAS.INICIO);
   const [cursoSelecionado, setCursoSelecionado] = useState(null);
   const [matrizSelecionada, setMatrizSelecionada] = useState(null);
   const [semestreAtual, setSemestreAtual] = useState(null);
   const [materiasAprovadas, setMateriasAprovadas] = useState([]);
   const [minimoConfirmados, setMinimoConfirmados] = useState([]); // lista de prereqs 'mínimo' que o usuário confirmou
-  const [materiasNoCalendario, setMateriasNoCalendario] = useState({});
+  // Cada plano tem a sua grade; curso, matriz, semestre e histórico são compartilhados.
+  const [planos, setPlanos] = useState(planosVazios);
+  const [planoAtivo, setPlanoAtivo] = useState('A');
+  // Combinação cujos dados estão no estado: evita salvar uma mistura enquanto o setup é editado.
+  const [combinacaoCarregada, setCombinacaoCarregada] = useState(null);
+  const materiasNoCalendario = planos[planoAtivo];
+  const setMateriasNoCalendario = useCallback(valor => {
+    setPlanos(atual => ({
+      ...atual,
+      [planoAtivo]: typeof valor === 'function' ? valor(atual[planoAtivo]) : valor
+    }));
+  }, [planoAtivo]);
   const [modalMateria, setModalMateria] = useState(null);
   const csvLoadState = useCsvLoadState();
   // No celular, setup, histórico e grade usam o fluxo próprio (a tela inicial é a mesma).
@@ -91,6 +119,23 @@ function App() {
 
   // Hook de toast para notificações
   const { toasts, addToast, removeToast } = useToast();
+
+  const combinacaoAtual = cursoSelecionado && matrizSelecionada && semestreAtual != null
+    ? chaveSetup(cursoSelecionado, matrizSelecionada, semestreAtual)
+    : null;
+  const persistencia = usePersistedSetup({
+    ativo: (etapa === ETAPAS.HISTORICO || etapa === ETAPAS.MONTAGEM)
+      && combinacaoAtual !== null
+      && combinacaoAtual === combinacaoCarregada,
+    etapa,
+    curso: cursoSelecionado,
+    matriz: matrizSelecionada,
+    semestre: semestreAtual,
+    aprovadas: materiasAprovadas,
+    minimoConfirmados,
+    planoAtivo,
+    planos
+  });
 
   // Inicia uma única carga; o estado é compartilhado com o wizard via useCsvLoadState.
   useEffect(() => {
@@ -116,12 +161,6 @@ function App() {
     const handlePopState = (event) => {
       if (event.state && event.state.etapa) {
         const novaEtapa = event.state.etapa;
-
-        // Se estava em MONTAGEM e está saindo, limpa o calendário
-        // Evita inconsistências de matérias de um período quando usuário muda de semestre
-        if (etapa === ETAPAS.MONTAGEM && novaEtapa !== ETAPAS.MONTAGEM) {
-          setMateriasNoCalendario({});
-        }
 
         // Se está voltando para SETUP de HISTORICO ou MONTAGEM, começar na última etapa (seleção de semestre)
         if (novaEtapa === ETAPAS.SETUP && (etapa === ETAPAS.HISTORICO || etapa === ETAPAS.MONTAGEM)) {
@@ -182,36 +221,102 @@ function App() {
     });
   };
 
-  const handleSetupComplete = ({ curso, matriz, semestre }) => {
+  // Carrega uma combinação salva, reidratando as grades a partir do CSV atual.
+  const aplicarSetupSalvo = (curso, matriz, semestre, setupSalvo) => {
+    const estado = reidratarSetup(setupSalvo, catalogoDe(curso, matriz));
     setCursoSelecionado(curso);
     setMatrizSelecionada(matriz);
     setSemestreAtual(semestre);
+    setMateriasAprovadas(estado.aprovadas);
+    setMinimoConfirmados(estado.minimoConfirmados);
+    setPlanos(estado.planos);
+    setPlanoAtivo(estado.planoAtivo);
+    setCombinacaoCarregada(chaveSetup(curso, matriz, semestre));
+    PLANOS.forEach(id => {
+      mensagensRemovidas(id, estado.removidas[id], getNomeMateriaOuCodigo)
+        .forEach(mensagem => addToast(mensagem, 'warning'));
+    });
+  };
 
-    // Por padrão, marca todas as matérias de semestres anteriores como aprovadas
-    const materiasCurso = getMateriasPorSemestre(curso, undefined, matriz);
-    const materiasAnteriores = [];
-    for (let i = 1; i < semestre; i++) {
-      const materias = materiasCurso[i] || [];
-      materias.forEach(m => materiasAnteriores.push(m.codigo));
+  const handleSetupComplete = ({ curso, matriz, semestre }) => {
+    // Voltar pra uma combinação já usada recupera o histórico e os planos dela.
+    const salvo = persistencia.lerSetup(curso, matriz, semestre);
+    if (salvo) {
+      aplicarSetupSalvo(curso, matriz, semestre, salvo);
+    } else {
+      setCursoSelecionado(curso);
+      setMatrizSelecionada(matriz);
+      setSemestreAtual(semestre);
+
+      // Por padrão, marca todas as matérias de semestres anteriores como aprovadas
+      const materiasCurso = getMateriasPorSemestre(curso, undefined, matriz);
+      const materiasAnteriores = [];
+      for (let i = 1; i < semestre; i++) {
+        const materias = materiasCurso[i] || [];
+        materias.forEach(m => materiasAnteriores.push(m.codigo));
+      }
+      setMateriasAprovadas(materiasAnteriores);
+      // Confirmações manuais valem apenas para a combinação em que foram feitas.
+      setMinimoConfirmados([]);
+      setPlanos(planosVazios());
+      setPlanoAtivo('A');
+      setCombinacaoCarregada(chaveSetup(curso, matriz, semestre));
     }
-    setMateriasAprovadas(materiasAnteriores);
-    // Confirmações manuais valem apenas para o curso/matriz em que foram feitas.
-    setMinimoConfirmados([]);
-    setMateriasNoCalendario({});
 
     // No celular, quem está no 1º semestre não tem histórico para marcar.
     navegarParaEtapa(isMobile && semestre === 1 ? ETAPAS.MONTAGEM : ETAPAS.HISTORICO);
   };
 
+  // Volta pra última combinação salva, na etapa em que o aluno parou.
+  const continuarDeOndeParei = () => {
+    const ultimo = persistencia.ultimoSalvo();
+    if (!ultimo || catalogoDe(ultimo.curso, ultimo.matriz).size === 0) return false;
+    aplicarSetupSalvo(ultimo.curso, ultimo.matriz, ultimo.semestre, ultimo.setup);
+    setSetupInitialStep(3);
+    const direto = ultimo.etapa === ETAPAS.MONTAGEM || (isMobile && ultimo.semestre === 1);
+    navegarParaEtapa(direto ? ETAPAS.MONTAGEM : ETAPAS.HISTORICO);
+    return true;
+  };
+
+  const handleContinuarDeOndeParei = () => {
+    if (csvLoadState.status !== 'success') return;
+    if (!continuarDeOndeParei()) {
+      addToast('Não foi possível abrir a grade salva. Escolha o curso de novo.', 'warning');
+      handleGetStartedClick();
+    }
+  };
+
+  const handleComecarDoZero = () => {
+    if (csvLoadState.status !== 'success') return;
+    persistencia.apagarTudo();
+    setCursoSelecionado(null);
+    setMatrizSelecionada(null);
+    setSemestreAtual(null);
+    setMateriasAprovadas([]);
+    setMinimoConfirmados([]);
+    setPlanos(planosVazios());
+    setPlanoAtivo('A');
+    setCombinacaoCarregada(null);
+    handleGetStartedClick();
+  };
+
+  // Recarregou a página: assim que o CSV chega, volta pra onde o aluno estava.
+  const restauracaoFeitaRef = useRef(false);
+  useEffect(() => {
+    if (restauracaoFeitaRef.current || csvLoadState.status !== 'success') return;
+    restauracaoFeitaRef.current = true;
+    if (etapa === ETAPAS.INICIO) continuarDeOndeParei();
+    // Só uma vez, na primeira carga bem-sucedida do CSV.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [csvLoadState.status]);
+
   const handleVoltarParaInicio = () => {
-    setMateriasNoCalendario({});
     navegarParaEtapa(ETAPAS.INICIO);
   };
 
   const handleVoltarParaSetup = () => {
     // Ao voltar para o setup, abre direto na etapa de semestre
     setSetupInitialStep(3);
-    setMateriasNoCalendario({});
     navegarParaEtapa(ETAPAS.SETUP);
   };
 
@@ -222,7 +327,6 @@ function App() {
     }
     // Um retorno posterior ao setup deve abrir na etapa de semestre
     setSetupInitialStep(3);
-    setMateriasNoCalendario({});
     navegarParaEtapa(ETAPAS.HISTORICO);
   };
 
@@ -238,6 +342,14 @@ function App() {
       setMateriasAprovadas(materiasAprovadas.filter(c => !materiasParaRemover.has(c)));
     } else {
       setMateriasAprovadas([...materiasAprovadas, codigo]);
+      // Matéria já feita não fica em nenhum plano.
+      setPlanos(atual => {
+        if (!PLANOS.some(id => atual[id][codigo])) return atual;
+        return Object.fromEntries(PLANOS.map(id => {
+          const { [codigo]: _removida, ...resto } = atual[id];
+          return [id, resto];
+        }));
+      });
     }
   };
 
@@ -283,16 +395,8 @@ function App() {
         return false;
       }
 
-      // Preservar horários originais (seg-sex) + adicionar horário do sábado
-      const horariosOriginais = materia.horarios || [];
-      const horarioSabado = { dia: SATURDAY_INDEX, inicio: nextHour, fim: nextHour + 1 };
-
-      const toAdd = {
-        ...materia,
-        anp: true,
-        anpHour: nextHour,
-        horarios: [...horariosOriginais, horarioSabado]
-      };
+      // Preserva os horários originais (seg-sex) e acrescenta o do sábado
+      const toAdd = comHorarioAnp(materia, nextHour);
 
       setMateriasNoCalendario(prevState => ({ ...prevState, [materia.codigo]: toAdd }));
       return true;
@@ -326,6 +430,33 @@ function App() {
   // Usado pelo "Desfazer" do fluxo mobile: volta a grade para um estado anterior.
   const handleRestaurarCalendario = (snapshot) => {
     setMateriasNoCalendario(snapshot || {});
+  };
+
+  // ---------- planos A/B/C ----------
+  const handleTrocarPlano = id => {
+    if (PLANOS.includes(id)) setPlanoAtivo(id);
+  };
+
+  const handleDuplicarPlano = destino => {
+    if (!PLANOS.includes(destino) || destino === planoAtivo) return;
+    setPlanos(atual => ({ ...atual, [destino]: { ...atual[planoAtivo] } }));
+    setPlanoAtivo(destino);
+  };
+
+  const handleLimparPlano = () => {
+    setPlanos(atual => ({ ...atual, [planoAtivo]: {} }));
+  };
+
+  const planosBar = {
+    ativo: planoAtivo,
+    planos: PLANOS.map(id => ({
+      id,
+      creditos: calcularTotalCreditos(planos[id]),
+      vazio: Object.keys(planos[id]).length === 0
+    })),
+    onTrocar: handleTrocarPlano,
+    onDuplicar: handleDuplicarPlano,
+    onLimpar: handleLimparPlano
   };
 
   // Effect para rolar para o calendário quando muda para a etapa de montagem
@@ -387,6 +518,7 @@ function App() {
                 onAddMateria={handleAddMateria}
                 onRemoveMateria={handleRemoveMateria}
                 onRestaurar={handleRestaurarCalendario}
+                planosBar={planosBar}
                 onConfirmMinimo={handleConfirmMinimo}
                 onVoltar={handleVoltarParaHistorico}
               />
@@ -397,6 +529,9 @@ function App() {
           {etapa === ETAPAS.INICIO && (
             <Hero
               onGetStartedClick={handleGetStartedClick}
+              temGradeSalva={persistencia.temSalvo}
+              onContinuarSalvo={handleContinuarDeOndeParei}
+              onComecarDoZero={handleComecarDoZero}
               csvLoadStatus={csvLoadState.status}
               onRetryCsv={handleRetryCsv}
             />
@@ -441,6 +576,7 @@ function App() {
               materiasMinimoConfirmadas={minimoConfirmados}
               onConfirmMinimo={handleConfirmMinimo}
               onMateriaClick={setModalMateria}
+              planosBar={planosBar}
             />
           )}
         </div>
