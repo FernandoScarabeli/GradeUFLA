@@ -5,7 +5,8 @@ import {
   CREDIT_MAX,
   DIAS_SEMANA,
   getDependentesCorequisito,
-  getPendenciasCorequisitosCalendario
+  getPendenciasCorequisitosCalendario,
+  horaExata
 } from '../../domain/gradeRules';
 import CalendarBoard from '../Calendar/CalendarBoard';
 import { CREDIT_WARN, gerarHorarios, getCorMateria } from '../Calendar/calendarUtils';
@@ -401,7 +402,8 @@ export default function MobileGrade({
                   <span className="m-block__name">{bloco.materia.nome}</span>
                   <span className="m-block__meta">
                     {bloco.anp && <><span className="m-badge">ANP</span>{' '}</>}
-                    Turma {bloco.materia.turmaId} · {pad2(bloco.inicio)}:00–{pad2(bloco.fim)}:00
+                    Turma {bloco.materia.turmaId} · {bloco.anp ? `${pad2(bloco.inicio)}:00–${pad2(bloco.fim)}:00` : `${horaExata(bloco.horario).inicio}–${horaExata(bloco.horario).fim}`}
+                    {bloco.horario?.sala && !bloco.anp && <> · {bloco.horario.sala}</>}
                   </span>
                 </button>
               ))}

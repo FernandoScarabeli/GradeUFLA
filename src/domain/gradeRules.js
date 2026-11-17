@@ -332,3 +332,53 @@ export function getDependentesCorequisito(codigo, materiasNoCalendario = {}) {
   }
   return remover;
 }
+
+// ---------- turma escolhida, sala, professor e horário exato ----------
+
+/** Matéria do catálogo com a turma escolhida, no formato que o App guarda na grade. */
+export const materiaComTurma = (materia, turma) => ({
+  ...materia,
+  turmaId: turma.id,
+  professor: turma.professor || null,
+  horarios: turma.horarios || [],
+  anp: turma.anp === true,
+  turmaAnp: turma.anp === true
+});
+
+const HORA_EXATA = /^(\d{1,2}):(\d{2})$/;
+const pad2 = valor => String(valor).padStart(2, '0');
+
+/**
+ * Início e fim reais da aula ("19:00", "20:40"). Os CSVs novos trazem horaInicio/horaFim;
+ * nos antigos só existem as horas cheias da grade.
+ */
+export function horaExata(horario) {
+  const exata = campo => {
+    const match = HORA_EXATA.exec(String(horario?.[campo] ?? '').trim());
+    return match ? `${pad2(match[1])}:${match[2]}` : null;
+  };
+  const inicio = exata('horaInicio') ?? (normalizarHora(horario?.inicio) != null ? `${pad2(normalizarHora(horario.inicio))}:00` : null);
+  const fim = exata('horaFim') ?? (normalizarHora(horario?.fim) != null ? `${pad2(normalizarHora(horario.fim))}:00` : null);
+  return { inicio, fim };
+}
+
+/** "Seg 19:00–20:40" (com a sala, se pedir e houver: "Seg 19:00–20:40 · PV6-06"). */
+export function formatarAula(horario, { comSala = false } = {}) {
+  const dia = DIAS_SEMANA[normalizarDia(horario?.dia)] ?? '?';
+  const { inicio, fim } = horaExata(horario);
+  const texto = `${dia} ${inicio ?? '?'}–${fim ?? '?'}`;
+  return comSala && horario?.sala ? `${texto} · ${horario.sala}` : texto;
+}
+
+const PARTICULAS = new Set(['da', 'das', 'de', 'do', 'dos', 'e']);
+
+/** "ALEXANDRE ALVES DE CARVALHO" -> "Alexandre Alves de Carvalho". */
+export function formatarNomeProprio(nome) {
+  const limpo = String(nome || '').trim().replace(/\s+/g, ' ');
+  if (!limpo) return '';
+  return limpo.toLocaleLowerCase('pt-BR').split(' ').map((palavra, indice) => (
+    indice > 0 && PARTICULAS.has(palavra)
+      ? palavra
+      : palavra.charAt(0).toLocaleUpperCase('pt-BR') + palavra.slice(1)
+  )).join(' ');
+}

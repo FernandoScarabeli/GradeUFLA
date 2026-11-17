@@ -1,14 +1,18 @@
 import {
   calcularTotalAposSelecao,
   excedeLimiteCreditos,
+  formatarAula,
+  formatarNomeProprio,
   findNextAnpHour,
   getDependentesAprovados,
   getDependentesCorequisito,
   getPendenciasPrerequisito,
   getPendenciasCorequisitosCalendario,
+  horaExata,
   horariosConflitam,
   isAnpOnly,
   isTurmaSelecionavel,
+  materiaComTurma,
   normalizarDia,
   normalizarHora,
   verificarConflitoMateria,
@@ -228,5 +232,33 @@ describe('getDependentesCorequisito', () => {
     };
     expect([...getDependentesCorequisito('A', calendario)].sort()).toEqual(['A', 'B', 'C']);
     expect([...getDependentesCorequisito('D', calendario)]).toEqual(['D']);
+  });
+});
+
+describe('sala, professor e horário exato', () => {
+  it('materiaComTurma leva o professor da turma', () => {
+    const materia = { codigo: 'X', nome: 'X', turmas: [] };
+    const turma = { id: 'A', professor: 'FULANO', horarios: [{ dia: 2, inicio: 8, fim: 10 }], anp: false };
+    expect(materiaComTurma(materia, turma)).toMatchObject({ turmaId: 'A', professor: 'FULANO', horarios: turma.horarios, anp: false });
+    expect(materiaComTurma(materia, { id: 'B' })).toMatchObject({ professor: null, horarios: [] });
+  });
+
+  it('horaExata prefere horaInicio/horaFim e cai para as horas cheias', () => {
+    expect(horaExata({ inicio: 19, fim: 21, horaInicio: '19:00', horaFim: '20:40' })).toEqual({ inicio: '19:00', fim: '20:40' });
+    expect(horaExata({ inicio: 8, fim: 10 })).toEqual({ inicio: '08:00', fim: '10:00' });
+    expect(horaExata({ inicio: 7, fim: 10, horaInicio: '7:00', horaFim: '09:30' })).toEqual({ inicio: '07:00', fim: '09:30' });
+  });
+
+  it('formatarAula mostra o dia, o horário e a sala quando pedida', () => {
+    const aula = { dia: 2, inicio: 19, fim: 21, horaInicio: '19:00', horaFim: '20:40', sala: 'PV6-06' };
+    expect(formatarAula(aula)).toBe('Ter 19:00–20:40');
+    expect(formatarAula(aula, { comSala: true })).toBe('Ter 19:00–20:40 · PV6-06');
+    expect(formatarAula({ dia: 1, inicio: 8, fim: 10 }, { comSala: true })).toBe('Seg 08:00–10:00');
+  });
+
+  it('formatarNomeProprio deixa o nome do SIG legível', () => {
+    expect(formatarNomeProprio('ALEXANDRE ALVES DE CARVALHO')).toBe('Alexandre Alves de Carvalho');
+    expect(formatarNomeProprio('  JOÃO  DOS SANTOS E SILVA ')).toBe('João dos Santos e Silva');
+    expect(formatarNomeProprio(null)).toBe('');
   });
 });

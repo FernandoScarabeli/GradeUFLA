@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ACADEMIC_TERM, DATA_UPDATED_AT } from '../../config/academicTerm';
+import { formatarNomeProprio } from '../../domain/gradeRules';
 import { DIAS_SEMANA } from './calendarUtils';
 
 function TurmasPopup({ materia, selectedTurmaIndex, verificarConflito, getCorTurma }) {
@@ -163,6 +164,9 @@ function LegendSection({ title, type, materias, getCorMateria }) {
               {materia.nome}
               {materia.turmaId && (
                 <span className="calendar__legend-turma"> - Turma {materia.turmaId}</span>
+              )}
+              {materia.professor && (
+                <span className="calendar__legend-prof"> · {formatarNomeProprio(materia.professor)}</span>
               )}
             </span>
           </div>

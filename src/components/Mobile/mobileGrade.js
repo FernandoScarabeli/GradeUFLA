@@ -1,10 +1,11 @@
 import {
-  DIAS_SEMANA,
   findNextAnpHour,
+  formatarAula,
   getPendenciasPrerequisito,
   isAnpOnly,
   isAnpTurma,
   isTurmaSelecionavel,
+  materiaComTurma,
   normalizarDia,
   normalizarHora,
   SATURDAY_INDEX,
@@ -30,12 +31,7 @@ export const casaBusca = (materia, termo) => {
 
 export const pad2 = hora => String(hora).padStart(2, '0');
 
-export const formatarIntervalo = (horario) => {
-  const dia = normalizarDia(horario?.dia);
-  const inicio = normalizarHora(horario?.inicio);
-  const fim = normalizarHora(horario?.fim);
-  return `${DIAS_SEMANA[dia] ?? '?'} ${inicio}–${fim}h`;
-};
+export const formatarIntervalo = (horario, opcoes) => formatarAula(horario, opcoes);
 
 /** Aulas de um dia, ordenadas, já com o horário do sábado marcado como ANP. */
 export function blocosDoDia(materiasNoCalendario = {}, dia) {
@@ -52,7 +48,7 @@ export function blocosDoDia(materiasNoCalendario = {}, dia) {
         && Number(materia.anpHour) === inicio;
       // Como na grade do desktop: para turma ANP, no sábado só vale a hora ANP alocada.
       if (isAnpTurma(materia) && dia === SATURDAY_INDEX && !anp) return;
-      blocos.push({ key: `${codigo}-${index}`, codigo, materia, inicio, fim, anp });
+      blocos.push({ key: `${codigo}-${index}`, codigo, materia, horario, inicio, fim, anp });
     });
   }
   return blocos.sort((a, b) => a.inicio - b.inicio);
@@ -93,14 +89,8 @@ export function listasParaAdicionar({
   };
 }
 
-/** Matéria do catálogo com a turma escolhida, no formato que o App guarda na grade. */
-export const materiaComTurma = (materia, turma) => ({
-  ...materia,
-  turmaId: turma.id,
-  horarios: turma.horarios || [],
-  anp: turma.anp === true,
-  turmaAnp: turma.anp === true
-});
+// Mantido aqui por compatibilidade: a fonte é o domínio.
+export { materiaComTurma };
 
 /** Situação de cada turma: disponível, sem horário, em conflito ou já na grade. */
 export function avaliarTurma(materia, turma, materiasNoCalendario = {}) {

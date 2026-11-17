@@ -4,6 +4,7 @@ import {
   calcularTotalAposSelecao,
   CREDIT_MAX,
   DIAS_SEMANA,
+  formatarNomeProprio,
   getPendenciasPrerequisito,
   isAnpTurma,
   normalizarDia,
@@ -159,7 +160,7 @@ export function AddSheetContent({ titleId, listas, estado, setEstado, contexto, 
 }
 
 function chipsDaTurma(turma) {
-  const chips = (turma.horarios || []).map(horario => formatarIntervalo(horario));
+  const chips = (turma.horarios || []).map(horario => formatarIntervalo(horario, { comSala: true }));
   return { chips, anp: isAnpTurma(turma) };
 }
 
@@ -270,6 +271,7 @@ export function TurmaSheetContent({
                   <span className="m-turma__id">Turma {item.id}</span>
                   {avaliacao.atual && <span className="m-turma__cur">Na sua grade</span>}
                 </span>
+                {item.professor && <span className="m-turma__prof">{formatarNomeProprio(item.professor)}</span>}
                 <span className="m-chips">
                   {chips.map(chip => <span key={chip} className="m-chip">{chip}</span>)}
                   {anp && <span className="m-chip"><span className="m-badge">ANP</span> 1h no sábado</span>}
@@ -324,16 +326,16 @@ export function DetailSheetContent({
           <p className="m-lead m-lead--tight"><code>{entrada.codigo}</code> · {entrada.creditos} créditos · {tipoRotulo}</p>
           <div>
             <h3>Turma {entrada.turmaId}</h3>
+            {entrada.professor && <p className="m-turma__prof">{formatarNomeProprio(entrada.professor)}</p>}
             <div className="m-chips">
               {(entrada.horarios || []).map((horario, index) => {
                 const dia = normalizarDia(horario.dia);
                 const inicio = normalizarHora(horario.inicio);
-                const fim = normalizarHora(horario.fim);
                 const ehAnp = isAnpTurma(entrada) && dia === SATURDAY_INDEX && inicio === anpHour;
                 return (
                   <span key={index} className="m-chip">
                     {ehAnp && <><span className="m-badge">ANP</span>{' '}</>}
-                    {DIAS_SEMANA[dia]} {pad2(inicio)}:00–{pad2(fim)}:00
+                    {ehAnp ? `${DIAS_SEMANA[dia]} ${pad2(inicio)}:00–${pad2(inicio + 1)}:00` : formatarIntervalo(horario, { comSala: true })}
                   </span>
                 );
               })}
