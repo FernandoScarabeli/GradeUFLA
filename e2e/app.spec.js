@@ -342,22 +342,22 @@ test('compara a grade com a de um amigo e mostra os horários livres em comum', 
   await page.getByRole('button', { name: 'Compartilhar' }).click();
   await page.getByRole('button', { name: 'Comparar horários com amigos' }).click();
   await expect(page.getByRole('heading', { name: 'Horários livres em comum' })).toBeVisible();
-  await expect(page.getByText('Adicione o link de pelo menos um amigo pra comparar.')).toBeVisible();
+  await expect(page.getByText(/Peça pro seu amigo abrir a grade dele/)).toBeVisible();
 
-  await page.getByLabel('Link da grade').fill('isso não é link');
+  const campo = page.getByLabel('Cole o link da grade de um amigo');
+  await campo.fill('isso não é link');
   await page.getByRole('button', { name: 'Adicionar' }).click();
   await expect(page.getByRole('alert')).toContainText('Cole o link de uma grade');
 
-  await page.getByLabel('Link da grade').fill(linkAmigo);
-  await page.getByLabel('Apelido (opcional)').fill('Ana');
+  await campo.fill(linkAmigo);
   await page.getByRole('button', { name: 'Adicionar' }).click();
+  await page.getByLabel('Apelido de Amigo 1').fill('Ana');
 
   // Programação Web: seg 8–10 (você); Banco de Dados: seg 9–11 (Ana).
-  await expect(page.getByRole('cell', { name: 'segunda 8h: ocupado (Você)' })).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'segunda 9h: ocupado (Você, Ana)' })).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'segunda 10h: ocupado (Ana)' })).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'segunda 11h: livre pra todos' })).toBeVisible();
-  await expect(page.getByRole('status').filter({ hasText: 'Livres juntos' })).toContainText('Seg 7h–8h, 11h–23h');
+  const segunda = page.getByRole('listitem', { name: 'segunda' });
+  await expect(segunda).toContainText('7–8h · 11–23h');
+  await expect(segunda).toContainText('Ocupados: 8–9h Você; 9–10h Você, Ana; 10–11h Ana');
+  await expect(page.getByRole('listitem', { name: 'terça' })).toContainText('Livre o dia todo');
 
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page.getByRole('heading', { name: /Minha Grade - 2º Semestre/ })).toBeVisible();

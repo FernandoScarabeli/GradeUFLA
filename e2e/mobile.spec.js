@@ -243,9 +243,9 @@ test('mobile: abre link compartilhado e mostra erro amigável pra link corrompid
   // Da grade compartilhada pra comparação: no celular vira lista por dia.
   await outra.getByRole('button', { name: 'Comparar com a minha' }).click();
   await expect(outra.getByRole('heading', { name: 'Horários livres em comum' })).toBeVisible();
-  const segunda = outra.getByRole('region', { name: 'segunda' });
-  await expect(segunda).toContainText('Livres juntos: 7h–8h, 10h–23h');
-  await expect(segunda).toContainText('Você, Amigo 1');
+  const segunda = outra.getByRole('listitem', { name: 'segunda' });
+  await expect(segunda).toContainText('7–8h · 10–23h');
+  await expect(segunda).toContainText('8–10h Você, Amigo 1');
 
   const quebrada = await context.newPage();
   await useAcademicFixtures(quebrada);

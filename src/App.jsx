@@ -736,7 +736,6 @@ function App() {
               pessoasIniciais={comparacao.pessoas}
               carregarLink={carregarLinkParaComparar}
               onVoltar={handleVoltarDaComparacao}
-              compacto={isMobile}
             />
           )}
           {!fluxoMobile && etapa === ETAPAS.SETUP && (

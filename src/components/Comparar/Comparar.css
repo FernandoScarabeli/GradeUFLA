@@ -1,301 +1,335 @@
-/* Horários livres em comum */
+/* Horários livres em comum: uma linha do tempo por dia, verde = todos livres. */
 .cmp {
+  --cmp-livre: rgba(0, 240, 181, 0.55);
+  --cmp-ocupado: rgba(255, 255, 255, 0.07);
+  --cmp-dia: 44px;
   width: 100%;
-  max-width: 980px;
+  max-width: 880px;
   margin: 0 auto;
-  padding: 24px 16px 48px;
+  padding: 24px 16px 56px;
   color: var(--color-text);
 }
 
-.cmp__topo {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
+.cmp__voltar {
   margin-bottom: 20px;
 }
 
 .cmp__titulo {
-  margin: 0;
-  font-size: 1.45rem;
+  margin: 0 0 16px;
+  font-size: 1.5rem;
+  line-height: 1.2;
 }
 
-.cmp__sub {
-  margin: 4px 0 0;
-  color: var(--color-text-muted);
-  font-size: 0.92rem;
-  line-height: 1.4;
-}
-
+/* ---------- pessoas ---------- */
 .cmp__pessoas {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin: 0 0 16px;
+  gap: 8px;
+  margin: 0 0 20px;
   padding: 0;
   list-style: none;
 }
 
 .cmp__pessoa {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 10px 8px 10px 12px;
-  border-radius: 12px;
-  background: var(--color-surface);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 8px;
+  min-height: 36px;
+  padding: 3px 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.cmp__pessoa:not(:has(.cmp__remover)) {
+  padding-right: 14px;
 }
 
 .cmp__avatar,
-.cmp__marca {
-  display: grid;
+.cmp__ponto {
+  display: inline-grid;
   place-items: center;
   flex: none;
   border-radius: 999px;
   background: var(--c);
   color: #111;
+  font-style: normal;
   font-weight: 800;
 }
 
 .cmp__avatar {
-  width: 30px;
-  height: 30px;
-  font-size: 0.85rem;
+  width: 28px;
+  height: 28px;
+  font-size: 0.8rem;
 }
 
-.cmp__pessoa-info {
-  display: flex;
-  flex-direction: column;
+.cmp__nome {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.cmp__nome--editavel {
   min-width: 0;
-  font-size: 0.82rem;
-  color: var(--color-text-muted);
-}
-
-.cmp__pessoa-info strong {
-  color: var(--color-text);
-  font-size: 0.95rem;
-}
-
-.cmp__apelido {
-  width: 140px;
   padding: 2px 4px;
   margin-left: -4px;
-  border: 1px solid transparent;
+  border: 0;
   border-radius: 6px;
   background: none;
   color: var(--color-text);
   font: inherit;
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 0.92rem;
+  font-weight: 600;
 }
 
-.cmp__apelido:hover,
-.cmp__apelido:focus {
-  border-color: rgba(255, 255, 255, 0.15);
+.cmp__nome--editavel:hover,
+.cmp__nome--editavel:focus {
+  background: rgba(255, 255, 255, 0.06);
   outline: none;
-}
-
-.cmp__aviso {
-  color: var(--color-royal-gold);
 }
 
 .cmp__remover {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 999px;
   background: none;
   color: var(--color-text-muted);
   cursor: pointer;
 }
 
-.cmp__remover:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--color-text);
+@media (hover: hover) and (pointer: fine) {
+  .cmp__remover:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-text);
+  }
 }
 
+.cmp__aviso {
+  margin: -8px 0 16px;
+  font-size: 0.85rem;
+  color: var(--color-royal-gold);
+}
+
+/* ---------- adicionar link ---------- */
 .cmp__form {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 28px;
+}
+
+.cmp__rotulo {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
 }
 
 .cmp__campo {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.82rem;
-  color: var(--color-text-muted);
+  gap: 8px;
 }
 
 .cmp__campo input {
-  min-height: 42px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: var(--color-surface);
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--color-text);
   font: inherit;
   font-size: 0.95rem;
 }
 
-.cmp__campo input:focus-visible,
-.cmp__apelido:focus-visible,
-.cmp__remover:focus-visible {
-  outline: 2px solid var(--color-tropical-mint);
-  outline-offset: 1px;
+.cmp__campo input::placeholder {
+  color: rgba(234, 234, 234, 0.4);
+}
+
+.cmp__campo input[aria-invalid="true"] {
+  border-color: rgba(255, 154, 163, 0.6);
 }
 
 .cmp__adicionar {
-  min-height: 42px;
-  padding-top: 0;
-  padding-bottom: 0;
+  flex: none;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--color-tropical-mint);
+  color: #04241b;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 150ms ease, transform 120ms ease;
+}
+
+.cmp__adicionar:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.cmp__adicionar:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cmp__campo input:focus-visible,
+.cmp__adicionar:focus-visible,
+.cmp__remover:focus-visible,
+.cmp__nome--editavel:focus-visible {
+  outline: 2px solid var(--color-tropical-mint);
+  outline-offset: 2px;
 }
 
 .cmp__erro {
-  grid-column: 1 / -1;
-  margin: 0;
-  color: #ff9aa3;
+  margin: 8px 0 0;
   font-size: 0.88rem;
+  color: #ff9aa3;
 }
 
 .cmp__dica {
-  padding: 24px 16px;
-  text-align: center;
-  color: var(--color-text-muted);
-}
-
-.cmp__resumo {
-  margin-bottom: 16px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: rgba(0, 240, 181, 0.08);
-  border: 1px solid rgba(0, 240, 181, 0.25);
-}
-
-.cmp__resumo h3 {
-  margin: 0 0 6px;
-  font-size: 1rem;
-  color: var(--color-tropical-mint);
-}
-
-.cmp__resumo ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 18px;
   margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 0.9rem;
-}
-
-.cmp__resumo p {
-  margin: 0;
-}
-
-.cmp__malha-wrap {
-  overflow-x: auto;
+  padding: 32px 16px;
   border-radius: 14px;
-  background: var(--color-surface);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.cmp__malha {
-  width: 100%;
-  table-layout: fixed;
-  border-collapse: separate;
-  border-spacing: 3px;
-  padding: 6px;
-  font-size: 0.8rem;
-}
-
-.cmp__malha th {
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  text-align: center;
+  font-size: 0.92rem;
+  line-height: 1.5;
   color: var(--color-text-muted);
-  font-weight: 700;
-  padding: 4px;
 }
 
-.cmp__malha thead th:first-child {
-  width: 48px;
-}
-
-.cmp__malha tbody th {
-  width: 44px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.cmp__celula {
-  height: 28px;
-  padding: 2px 4px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
-  white-space: nowrap;
-}
-
-/* Livre pra todos: tinta leve; o que chama atenção é quem ocupa. */
-.cmp__celula--livre {
-  background: rgba(0, 240, 181, 0.09);
-}
-
-.cmp__marca {
-  display: inline-grid;
-  width: 20px;
-  height: 20px;
-  margin-right: 3px;
-  font-size: 0.68rem;
-}
-
-.cmp__dias {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.cmp__dia {
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--color-surface);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.cmp__dia h4 {
-  margin: 0 0 6px;
-  font-size: 0.95rem;
-  text-transform: capitalize;
-}
-
-.cmp__dia p {
-  margin: 4px 0 0;
-  font-size: 0.88rem;
-}
-
-.cmp__livre {
-  color: var(--color-tropical-mint);
+.cmp__dica strong {
+  color: var(--color-text);
   font-weight: 600;
 }
 
-.cmp__ocupado {
+/* ---------- semana ---------- */
+.cmp__legenda {
   display: flex;
-  gap: 10px;
+  gap: 18px;
+  margin-bottom: 14px;
+  font-size: 0.82rem;
   color: var(--color-text-muted);
 }
 
-.cmp__ocupado span:first-child {
-  flex: none;
-  width: 72px;
+.cmp__legenda span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cmp__amostra {
+  width: 14px;
+  height: 10px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.cmp__amostra--livre {
+  background: var(--cmp-livre);
+}
+
+.cmp__eixo {
+  position: relative;
+  height: 16px;
+  margin-left: var(--cmp-dia);
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
+.cmp__eixo span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.cmp__eixo span:first-child {
+  transform: none;
+}
+
+.cmp__eixo span:last-child {
+  transform: translateX(-100%);
+}
+
+.cmp__dias {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cmp__dia {
+  display: grid;
+  grid-template-columns: var(--cmp-dia) 1fr;
+  align-items: center;
+  row-gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cmp__dia-nome {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.cmp__barra {
+  position: relative;
+  height: 26px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--cmp-ocupado);
+}
+
+.cmp__trecho {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.cmp__trecho--livre {
+  background: var(--cmp-livre);
+}
+
+.cmp__ponto {
+  width: 14px;
+  height: 14px;
+  font-size: 0;
+}
+
+.cmp__livres {
+  grid-column: 2;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-tropical-mint);
+  font-variant-numeric: tabular-nums;
+}
+
+.cmp__nenhum {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @media (max-width: 640px) {
-  .cmp { padding: 16px 12px 40px; }
-  .cmp__topo { flex-direction: column; gap: 10px; }
-  .cmp__titulo { font-size: 1.2rem; }
-  .cmp__form { grid-template-columns: 1fr; }
-  .cmp__pessoa { width: 100%; }
-  .cmp__apelido { width: 100%; }
+  .cmp { --cmp-dia: 38px; padding: 16px 16px 40px; }
+  .cmp__titulo { font-size: 1.25rem; }
+  .cmp__barra { height: 22px; }
+  .cmp__ponto { width: 10px; height: 10px; }
 }

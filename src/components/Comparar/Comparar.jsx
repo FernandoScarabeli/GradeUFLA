@@ -1,63 +1,69 @@
 import { useId, useMemo, useState } from 'react';
-import { DIAS_SEMANA } from '../../domain/gradeRules';
 import {
   calcularHorariosEmComum,
   DIAS_COMUM,
-  formatarTrecho,
   HORA_FIM_COMUM,
   HORA_INICIO_COMUM,
-  resumirLivres,
   trechosOcupadosDoDia
 } from '../../domain/horariosEmComum';
+import { DIAS_SEMANA } from '../../domain/gradeRules';
 import { DIAS_LONGOS } from '../Mobile/mobileGrade';
 import './Comparar.css';
 
 const MAX_PESSOAS = 4; // você + 3 amigos
 const CORES = ['#00F0B5', '#F9DC5C', '#8EA8FF', '#FF8FA3'];
-const HORAS = Array.from({ length: HORA_FIM_COMUM - HORA_INICIO_COMUM }, (_, indice) => HORA_INICIO_COMUM + indice);
+const TOTAL_HORAS = HORA_FIM_COMUM - HORA_INICIO_COMUM;
+const MARCAS = [7, 11, 15, 19, 23];
 
 const inicial = nome => (String(nome || '?').trim()[0] || '?').toLocaleUpperCase('pt-BR');
+const faixa = ({ inicio, fim }) => `${inicio}–${fim}h`;
+const diaTodo = livres => livres.length === 1
+  && livres[0].inicio === HORA_INICIO_COMUM
+  && livres[0].fim === HORA_FIM_COMUM;
+const posicao = ({ inicio, fim }) => ({
+  left: `${((inicio - HORA_INICIO_COMUM) / TOTAL_HORAS) * 100}%`,
+  width: `${((fim - inicio) / TOTAL_HORAS) * 100}%`
+});
 
 /**
- * Compara a sua grade com até 3 grades de amigos (links #g=). Apelidos ficam só na memória
- * da página. Desktop: malha da semana; celular: lista por dia.
+ * Quando todo mundo está livre? Uma linha do tempo por dia: verde = todos livres,
+ * cinza = alguém tem aula (com as iniciais de quem). Os horários livres vêm escritos embaixo.
+ * Apelidos ficam só na memória da página.
  */
-export default function Comparar({ pessoasIniciais, carregarLink, onVoltar, compacto = false }) {
+export default function Comparar({ pessoasIniciais, carregarLink, onVoltar }) {
   const [pessoas, setPessoas] = useState(() => pessoasIniciais.slice(0, MAX_PESSOAS));
   const [link, setLink] = useState('');
-  const [apelido, setApelido] = useState('');
   const [erro, setErro] = useState(null);
   const [carregando, setCarregando] = useState(false);
   const linkId = useId();
-  const apelidoId = useId();
 
   const resultado = useMemo(() => calcularHorariosEmComum(pessoas), [pessoas]);
-  const resumo = resumirLivres(resultado.livres);
   const porId = new Map(pessoas.map((pessoa, indice) => [pessoa.id, { ...pessoa, cor: CORES[indice % CORES.length] }]));
-  const nomesDe = ids => ids.map(id => porId.get(id)?.nome).filter(Boolean);
-  const proximoAmigo = () => {
+  const nomesDe = ids => ids.map(id => porId.get(id)?.nome || 'Amigo').join(', ');
+  const cheio = pessoas.length >= MAX_PESSOAS;
+  const comparando = pessoas.length >= 2;
+
+  const proximoAmigo = atuais => {
     let numero = 1;
-    while (pessoas.some(pessoa => pessoa.nome === `Amigo ${numero}`)) numero += 1;
+    while (atuais.some(pessoa => pessoa.nome === `Amigo ${numero}`)) numero += 1;
     return `Amigo ${numero}`;
   };
-  const cheio = pessoas.length >= MAX_PESSOAS;
 
   const adicionar = async event => {
     event.preventDefault();
-    if (cheio || carregando) return;
+    if (cheio || carregando || !link.trim()) return;
     setErro(null);
     setCarregando(true);
     try {
       const amigo = await carregarLink(link);
       setPessoas(atuais => [...atuais, {
         id: `amigo-${Date.now()}-${atuais.length}`,
-        nome: apelido.trim() || proximoAmigo(),
+        nome: proximoAmigo(atuais),
         grade: amigo.grade,
         descricao: amigo.descricao,
         avisos: amigo.avisos
       }]);
       setLink('');
-      setApelido('');
     } catch (falha) {
       setErro(falha?.message || 'Não foi possível abrir esse link.');
     } finally {
@@ -70,38 +76,31 @@ export default function Comparar({ pessoasIniciais, carregarLink, onVoltar, comp
 
   return (
     <section className="cmp" aria-labelledby="cmp-titulo">
-      <header className="cmp__topo">
-        <button className="btn-voltar" type="button" onClick={onVoltar}>
-          <i className="fi fi-br-arrow-left" aria-hidden="true" />
-          <span className="btn-voltar__text">Voltar</span>
-        </button>
-        <div>
-          <h2 id="cmp-titulo" className="cmp__titulo">Horários livres em comum</h2>
-          <p className="cmp__sub">Cole o link da grade de até 3 amigos pra achar um horário em que todo mundo está livre.</p>
-        </div>
-      </header>
+      <button className="btn-voltar cmp__voltar" type="button" onClick={onVoltar}>
+        <i className="fi fi-br-arrow-left" aria-hidden="true" />
+        <span className="btn-voltar__text">Voltar</span>
+      </button>
 
-      <ul className="cmp__pessoas" aria-label="Grades comparadas">
+      <h2 id="cmp-titulo" className="cmp__titulo">Horários livres em comum</h2>
+
+      <ul className="cmp__pessoas" aria-label="Quem está na comparação">
         {pessoas.map((pessoa, indice) => (
-          <li key={pessoa.id} className="cmp__pessoa">
+          <li key={pessoa.id} className="cmp__pessoa" title={pessoa.descricao}>
             <span className="cmp__avatar" style={{ '--c': CORES[indice % CORES.length] }} aria-hidden="true">
               {inicial(pessoa.nome)}
             </span>
-            <div className="cmp__pessoa-info">
-              {pessoa.fixo ? (
-                <strong>{pessoa.nome}</strong>
-              ) : (
-                <input
-                  className="cmp__apelido"
-                  value={pessoa.nome}
-                  maxLength={20}
-                  aria-label={`Apelido de ${pessoa.nome || 'amigo'}`}
-                  onChange={event => renomear(pessoa.id, event.target.value)}
-                />
-              )}
-              <span>{pessoa.descricao}</span>
-              {(pessoa.avisos || []).map(aviso => <span key={aviso} className="cmp__aviso">{aviso}</span>)}
-            </div>
+            {pessoa.fixo ? (
+              <span className="cmp__nome">{pessoa.nome}</span>
+            ) : (
+              <input
+                className="cmp__nome cmp__nome--editavel"
+                value={pessoa.nome}
+                maxLength={16}
+                size={Math.max(4, pessoa.nome.length)}
+                aria-label={`Apelido de ${pessoa.nome || 'amigo'}`}
+                onChange={event => renomear(pessoa.id, event.target.value)}
+              />
+            )}
             {!pessoa.fixo && (
               <button
                 type="button"
@@ -116,114 +115,90 @@ export default function Comparar({ pessoasIniciais, carregarLink, onVoltar, comp
         ))}
       </ul>
 
+      {pessoas.flatMap(pessoa => pessoa.avisos || []).map(aviso => (
+        <p key={aviso} className="cmp__aviso">{aviso}</p>
+      ))}
+
       {!cheio && (
         <form className="cmp__form" onSubmit={adicionar}>
-          <div className="cmp__campo cmp__campo--link">
-            <label htmlFor={linkId}>Link da grade</label>
+          <label className="cmp__rotulo" htmlFor={linkId}>
+            {comparando ? 'Adicionar mais um amigo' : 'Cole o link da grade de um amigo'}
+          </label>
+          <div className="cmp__campo">
             <input
               id={linkId}
               value={link}
-              onChange={event => setLink(event.target.value)}
-              placeholder="https://gradeufla.com.br/#g=…"
+              onChange={event => { setLink(event.target.value); setErro(null); }}
+              placeholder="gradeufla.com.br/#g=…"
               autoComplete="off"
               inputMode="url"
-              required
+              aria-invalid={Boolean(erro)}
+              aria-describedby={erro ? `${linkId}-erro` : undefined}
             />
+            <button className="cmp__adicionar" type="submit" disabled={carregando || !link.trim()}>
+              {carregando ? 'Abrindo…' : 'Adicionar'}
+            </button>
           </div>
-          <div className="cmp__campo">
-            <label htmlFor={apelidoId}>Apelido (opcional)</label>
-            <input
-              id={apelidoId}
-              value={apelido}
-              maxLength={20}
-              onChange={event => setApelido(event.target.value)}
-              placeholder={proximoAmigo()}
-            />
-          </div>
-          <button className="btn-primary cmp__adicionar" type="submit" disabled={carregando}>
-            {carregando ? 'Abrindo…' : 'Adicionar'}
-          </button>
-          {erro && <p className="cmp__erro" role="alert">{erro}</p>}
+          {erro && <p id={`${linkId}-erro`} className="cmp__erro" role="alert">{erro}</p>}
         </form>
       )}
 
-      {pessoas.length < 2 ? (
-        <p className="cmp__dica">Adicione o link de pelo menos um amigo pra comparar.</p>
+      {!comparando ? (
+        <p className="cmp__dica">
+          Peça pro seu amigo abrir a grade dele e tocar em <strong>Compartilhar → Copiar link da grade</strong>.
+        </p>
       ) : (
-        <>
-          <div className="cmp__resumo" role="status">
-            <h3>Livres juntos</h3>
-            {resumo.length === 0 ? (
-              <p>Nenhum horário livre em comum de segunda a sábado.</p>
-            ) : (
-              <ul>
-                {resumo.map(item => (
-                  <li key={item.dia}><strong>{item.nome}</strong> {item.texto}</li>
-                ))}
-              </ul>
-            )}
+        <div className="cmp__semana">
+          <div className="cmp__legenda" aria-hidden="true">
+            <span><i className="cmp__amostra cmp__amostra--livre" /> Todos livres</span>
+            <span><i className="cmp__amostra" /> Alguém tem aula</span>
           </div>
 
-          {compacto ? (
-            <div className="cmp__dias">
-              {DIAS_COMUM.map(dia => {
-                const livres = resultado.livres.filter(livre => livre.dia === dia);
-                const ocupados = trechosOcupadosDoDia(resultado.celulas, dia);
-                return (
-                  <section key={dia} className="cmp__dia" aria-label={DIAS_LONGOS[dia]}>
-                    <h4>{DIAS_LONGOS[dia]}</h4>
-                    {livres.length > 0 && (
-                      <p className="cmp__livre">Livres juntos: {livres.map(formatarTrecho).join(', ')}</p>
-                    )}
-                    {ocupados.map(trecho => (
-                      <p key={trecho.inicio} className="cmp__ocupado">
-                        <span>{formatarTrecho(trecho)}</span>
-                        <span>{nomesDe(trecho.ocupados).join(', ')}</span>
-                      </p>
+          <div className="cmp__eixo" aria-hidden="true">
+            {MARCAS.map(hora => (
+              <span key={hora} style={{ left: `${((hora - HORA_INICIO_COMUM) / TOTAL_HORAS) * 100}%` }}>{hora}h</span>
+            ))}
+          </div>
+
+          <ul className="cmp__dias">
+            {DIAS_COMUM.map(dia => {
+              const livres = resultado.livres.filter(livre => livre.dia === dia);
+              const ocupados = trechosOcupadosDoDia(resultado.celulas, dia);
+              return (
+                <li key={dia} className="cmp__dia" aria-label={DIAS_LONGOS[dia]}>
+                  <span className="cmp__dia-nome" aria-hidden="true">{DIAS_SEMANA[dia]}</span>
+                  <div className="cmp__barra" aria-hidden="true">
+                    {livres.map(trecho => (
+                      <span key={`l${trecho.inicio}`} className="cmp__trecho cmp__trecho--livre" style={posicao(trecho)} />
                     ))}
-                  </section>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="cmp__malha-wrap">
-              <table className="cmp__malha">
-                <thead>
-                  <tr>
-                    <th scope="col">Hora</th>
-                    {DIAS_COMUM.map(dia => <th key={dia} scope="col">{DIAS_SEMANA[dia]}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {HORAS.map(hora => (
-                    <tr key={hora}>
-                      <th scope="row">{hora}h</th>
-                      {DIAS_COMUM.map(dia => {
-                        const ocupados = resultado.celulas[`${dia}:${hora}`] || [];
-                        const livre = ocupados.length === 0;
-                        return (
-                          <td
-                            key={dia}
-                            className={livre ? 'cmp__celula cmp__celula--livre' : 'cmp__celula'}
-                            aria-label={livre
-                              ? `${DIAS_LONGOS[dia]} ${hora}h: livre pra todos`
-                              : `${DIAS_LONGOS[dia]} ${hora}h: ocupado (${nomesDe(ocupados).join(', ')})`}
-                          >
-                            {!livre && ocupados.map(id => (
-                              <span key={id} className="cmp__marca" style={{ '--c': porId.get(id)?.cor }} aria-hidden="true">
-                                {inicial(porId.get(id)?.nome)}
-                              </span>
-                            ))}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
+                    {ocupados.map(trecho => (
+                      <span
+                        key={`o${trecho.inicio}`}
+                        className="cmp__trecho"
+                        style={posicao(trecho)}
+                        title={`${faixa(trecho)}: ${nomesDe(trecho.ocupados)}`}
+                      >
+                        {trecho.ocupados.map(id => (
+                          <i key={id} className="cmp__ponto" style={{ '--c': porId.get(id)?.cor }} />
+                        ))}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="cmp__livres">
+                    {livres.length === 0 && <span className="cmp__nenhum">Nenhum horário livre em comum</span>}
+                    {livres.length > 0 && <span className="sr-only">Livres juntos: </span>}
+                    {diaTodo(livres) ? 'Livre o dia todo' : livres.map(faixa).join(' · ')}
+                  </p>
+                  {ocupados.length > 0 && (
+                    <p className="sr-only">
+                      Ocupados: {ocupados.map(trecho => `${faixa(trecho)} ${nomesDe(trecho.ocupados)}`).join('; ')}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </section>
   );
