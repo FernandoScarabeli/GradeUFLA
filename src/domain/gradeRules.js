@@ -345,6 +345,14 @@ export const materiaComTurma = (materia, turma) => ({
   turmaAnp: turma.anp === true
 });
 
+/** Entrada ANP da grade: mantém os horários de seg–sex e acrescenta a hora escolhida no sábado. */
+export const comHorarioAnp = (materia, hora) => ({
+  ...materia,
+  anp: true,
+  anpHour: hora,
+  horarios: [...(materia.horarios || []), { dia: SATURDAY_INDEX, inicio: hora, fim: hora + 1 }]
+});
+
 const HORA_EXATA = /^(\d{1,2}):(\d{2})$/;
 const pad2 = valor => String(valor).padStart(2, '0');
 

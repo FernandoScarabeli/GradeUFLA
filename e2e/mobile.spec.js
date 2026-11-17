@@ -171,6 +171,43 @@ test.describe('fluxo mobile com dados controlados', () => {
   });
 });
 
+test('mobile: salva no navegador, alterna planos e recupera ao trocar de semestre', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'Fluxo exclusivo do celular.');
+  await stubGoogleCalendar(page);
+  await completeMobileFlow(page);
+  const aba = plano => page.getByRole('tab', { name: new RegExp(`^Plano ${plano},`) });
+
+  await addSubject(page, 'Programação Web', 'A');
+  await expect(credits(page)).toHaveAccessibleName('4 de 32 créditos');
+
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Minha grade' })).toBeVisible({ timeout: 30_000 });
+  await expect(credits(page)).toHaveAccessibleName('4 de 32 créditos');
+
+  await aba('B').click();
+  await expect(credits(page)).toHaveAccessibleName('0 de 32 créditos');
+  await addSubject(page, 'Banco de Dados', 'A');
+  await expect(aba('B')).toHaveAccessibleName('Plano B, 4 créditos');
+  await aba('A').click();
+  await expect(aba('A')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.m-block', { hasText: 'Programação Web' })).toHaveCount(1);
+
+  // 1º semestre vai direto pra grade, vazia; voltar pro 2º recupera os planos.
+  await page.getByRole('button', { name: 'Voltar ao histórico' }).click();
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await page.getByRole('radio', { name: '1º semestre' }).click();
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await expect(page.getByText(/1º semestre ·/)).toBeVisible();
+  await expect(credits(page)).toHaveAccessibleName('0 de 32 créditos');
+
+  await page.getByRole('button', { name: 'Voltar ao histórico' }).click();
+  await page.getByRole('radio', { name: '2º semestre' }).click();
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await page.getByRole('button', { name: 'Montar minha grade' }).click();
+  await expect(aba('A')).toHaveAccessibleName('Plano A, 4 créditos');
+  await expect(aba('B')).toHaveAccessibleName('Plano B, 4 créditos');
+});
+
 test('mobile: 1º semestre vai direto para a grade com dados reais', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'Fluxo exclusivo do celular.');
   test.slow();

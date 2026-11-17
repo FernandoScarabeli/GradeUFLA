@@ -32,6 +32,7 @@ span[class*=" fi-br-"]::before {
 .fi-br-calendar-arrow-up::before { content: "\f321"; }
 .fi-br-check-circle::before { content: "\f3c5"; }
 .fi-br-check::before { content: "\f3c9"; }
+.fi-br-copy::before { content: "\f4df"; }
 .fi-br-cross-circle::before { content: "\f4f7"; }
 .fi-br-cross-small::before { content: "\f4f9"; }
 .fi-br-cross::before { content: "\f4fa"; }
@@ -39,6 +40,7 @@ span[class*=" fi-br-"]::before {
 .fi-br-exchange::before { content: "\f5ed"; }
 .fi-br-info::before { content: "\f813"; }
 .fi-br-lock::before { content: "\f8dd"; }
+.fi-br-menu-dots::before { content: "\f92d"; }
 .fi-br-menu-dots-vertical::before { content: "\f92c"; }
 .fi-br-plus::before { content: "\fab1"; }
 .fi-br-rocket::before { content: "\fb69"; }

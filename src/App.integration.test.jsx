@@ -243,7 +243,7 @@ test('responde a voltar e avançar do navegador sem perder a seleção do setup'
   expect(await screen.findByRole('heading', { name: 'Matérias' })).toBeInTheDocument();
 });
 
-test('confirmações de pré-requisito mínimo não sobrevivem a um novo setup', async () => {
+test('confirmações de pré-requisito mínimo valem só para a combinação em que foram feitas', async () => {
   const estatistica = {
     codigo: 'GES105',
     nome: 'Bioestatística',
@@ -255,10 +255,27 @@ test('confirmações de pré-requisito mínimo não sobrevivem a um novo setup',
     turmas: [{ id: 'A', horarios: [{ dia: 3, inicio: 8, fim: 10 }] }]
   };
   data.getMateriasPorSemestre.mockReturnValue({ 1: [introducao], 2: [algoritmos, estatistica] });
+  data.getMatrizesByCurso.mockReturnValue([
+    { id: '2023/01', nome: '2023/01' },
+    { id: '2019/01', nome: '2019/01' }
+  ]);
 
   const cardBloqueado = () => screen.getByText(estatistica.nome)
     .closest('.materia-card')
     .querySelector('.materia-card__minimo-btn');
+
+  const refazerSetupComMatriz = async matriz => {
+    fireEvent.click(screen.getByRole('button', { name: /voltar/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /^voltar$/i }));
+    await screen.findByRole('heading', { name: /qual semestre você está/i });
+    fireEvent.click(document.querySelector('.stepper-back-button'));
+    selectOption(/matriz curricular/i, new RegExp(`matriz ${matriz}`, 'i'));
+    fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
+    selectOption(/semestre/i, /2º módulo/i);
+    fireEvent.click(screen.getByRole('button', { name: /finalizar/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /continuar para montagem/i }));
+    expect(await screen.findByText(estatistica.nome)).toBeInTheDocument();
+  };
 
   render(<App />);
   await reachCalendar();
@@ -267,12 +284,106 @@ test('confirmações de pré-requisito mínimo não sobrevivem a um novo setup',
   fireEvent.click(screen.getByRole('button', { name: /sim, destravar matéria/i }));
   expect(cardBloqueado()).toBeNull();
 
-  // Volta até o setup e finaliza de novo
-  fireEvent.click(screen.getByRole('button', { name: /voltar/i }));
-  fireEvent.click(await screen.findByRole('button', { name: /^voltar$/i }));
-  fireEvent.click(await screen.findByRole('button', { name: /finalizar/i }));
-  fireEvent.click(await screen.findByRole('button', { name: /continuar para montagem/i }));
-
-  expect(await screen.findByText(estatistica.nome)).toBeInTheDocument();
+  // Outra matriz começa sem a confirmação…
+  await refazerSetupComMatriz('2019/01');
   expect(cardBloqueado()).not.toBeNull();
+
+  // …e voltar pra matriz original recupera o que foi confirmado nela.
+  await refazerSetupComMatriz('2023/01');
+  expect(cardBloqueado()).toBeNull();
+});
+
+const adicionarAlgoritmos = turma => {
+  const dialog = openAlgoritmosModal();
+  fireEvent.click(within(dialog).getByRole('button', { name: new RegExp(`turma ${turma}`, 'i') }));
+  fireEvent.click(within(dialog).getByRole('button', { name: /fechar detalhes/i }));
+};
+
+const creditos = () => screen.getByText('Créditos:').parentElement;
+
+test('recarregar a página volta pra montagem com a grade salva', async () => {
+  const { unmount } = render(<App />);
+  await reachCalendar();
+  adicionarAlgoritmos('B');
+  expect(creditos()).toHaveTextContent('Créditos: 4');
+
+  // Desmontar grava o que estava pendente no debounce (como o pagehide ao recarregar).
+  unmount();
+  const salvo = JSON.parse(window.localStorage.getItem('gradeufla:v1'));
+  expect(salvo.setups['G001|2023/01|2'].planos.A).toEqual({ GCC202: { turmaId: 'B' } });
+
+  render(<App />);
+  expect(await screen.findByRole('heading', { name: /minha grade - 2º semestre/i })).toBeInTheDocument();
+  expect(creditos()).toHaveTextContent('Créditos: 4');
+  const dialog = openAlgoritmosModal();
+  expect(within(dialog).getByText('Turma B').closest('.turma-item')).toHaveTextContent(/horário escolhido/i);
+});
+
+test('cada plano guarda a sua grade e o duplicar copia o plano ativo', async () => {
+  render(<App />);
+  await reachCalendar();
+  adicionarAlgoritmos('A');
+
+  fireEvent.click(screen.getByRole('tab', { name: /plano b/i }));
+  expect(screen.getByRole('tab', { name: /plano b/i })).toHaveAttribute('aria-selected', 'true');
+  expect(creditos()).toHaveTextContent('Créditos: 0');
+
+  fireEvent.click(screen.getByRole('tab', { name: /plano a/i }));
+  expect(creditos()).toHaveTextContent('Créditos: 4');
+  expect(screen.getByRole('tab', { name: /plano a/i })).toHaveAccessibleName('Plano A, 4 créditos');
+
+  fireEvent.click(screen.getByRole('button', { name: /opções do plano a/i }));
+  fireEvent.click(screen.getByRole('button', { name: /duplicar em plano c/i }));
+  expect(screen.getByRole('tab', { name: /plano c/i })).toHaveAttribute('aria-selected', 'true');
+  expect(creditos()).toHaveTextContent('Créditos: 4');
+
+  fireEvent.click(screen.getByRole('button', { name: /opções do plano c/i }));
+  fireEvent.click(screen.getByRole('button', { name: /limpar plano c/i }));
+  fireEvent.click(screen.getByRole('button', { name: /^limpar$/i }));
+  expect(creditos()).toHaveTextContent('Créditos: 0');
+  expect(screen.getByRole('tab', { name: /plano a/i })).toHaveAccessibleName('Plano A, 4 créditos');
+});
+
+test('começar do zero apaga a grade salva', async () => {
+  window.localStorage.setItem('gradeufla:v1', JSON.stringify({
+    v: 1,
+    ultimo: 'G001|2023/01|2',
+    etapa: 'historico',
+    setups: {
+      'G001|2023/01|2': { aprovadas: ['GCC101'], minimoConfirmados: [], planoAtivo: 'A', planos: { A: {}, B: {}, C: {} } }
+    }
+  }));
+  render(<App />);
+  expect(await screen.findByRole('heading', { name: 'Matérias' })).toBeInTheDocument();
+
+  act(() => {
+    window.dispatchEvent(new PopStateEvent('popstate', { state: { etapa: 'inicio' } }));
+  });
+  fireEvent.click(await screen.findByRole('button', { name: /começar do zero/i }));
+  fireEvent.click(screen.getByRole('button', { name: /apagar e começar/i }));
+
+  expect(await screen.findByRole('heading', { name: /qual é o seu curso/i })).toBeInTheDocument();
+  expect(window.localStorage.getItem('gradeufla:v1')).toBeNull();
+});
+
+test('avisa quando uma matéria salva saiu da grade porque a turma não existe mais', async () => {
+  window.localStorage.setItem('gradeufla:v1', JSON.stringify({
+    v: 1,
+    ultimo: 'G001|2023/01|2',
+    etapa: 'montagem',
+    setups: {
+      'G001|2023/01|2': {
+        aprovadas: ['GCC101'],
+        minimoConfirmados: [],
+        planoAtivo: 'A',
+        planos: { A: { GCC202: { turmaId: 'Z' } }, B: {}, C: {} }
+      }
+    }
+  }));
+  render(<App />);
+
+  expect(await screen.findByRole('heading', { name: /minha grade - 2º semestre/i })).toBeInTheDocument();
+  expect(await screen.findByText(/Algoritmos e Estruturas de Dados saiu do Plano A porque a turma não existe mais/))
+    .toBeInTheDocument();
+  expect(creditos()).toHaveTextContent('Créditos: 0');
 });

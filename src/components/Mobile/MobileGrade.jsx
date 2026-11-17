@@ -15,6 +15,7 @@ import useCalendarExport from '../Calendar/useCalendarExport';
 import useGoogleCalendarExport from '../../hooks/useGoogleCalendarExport';
 import BottomSheet, { SheetHead } from './BottomSheet';
 import GoogleExportForm from '../GoogleExport/GoogleExportForm';
+import PlanosBar from '../Planos/PlanosBar';
 import { AddSheetContent, DetailSheetContent, TurmaSheetContent } from './GradeSheets';
 import Snackbar, { useSnackbar } from './Snackbar';
 import {
@@ -49,7 +50,8 @@ export default function MobileGrade({
   onRemoveMateria,
   onRestaurar,
   onConfirmMinimo,
-  onVoltar
+  onVoltar,
+  planosBar = null
 }) {
   const [vista, setVista] = useState('dia');
   const [dia, setDia] = useState(diaInicial);
@@ -344,6 +346,18 @@ export default function MobileGrade({
           <i className="fi fi-br-download" aria-hidden="true" />
         </button>
       </header>
+
+      {/* O "Desfazer" de uma mensagem antiga não pode agir sobre outro plano: fecha antes. */}
+      {planosBar && (
+        <PlanosBar
+          {...planosBar}
+          variante="mobile"
+          onTrocar={id => { fecharSnack(); planosBar.onTrocar(id); }}
+          onDuplicar={destino => { fecharSnack(); planosBar.onDuplicar(destino); }}
+          onLimpar={() => { fecharSnack(); planosBar.onLimpar(); }}
+          onAviso={mensagem => mostrar(mensagem)}
+        />
+      )}
 
       {vista === 'dia' ? (
         <>

@@ -93,6 +93,20 @@
   transform: none;
 }
 
+.hero-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 420px;
+}
+
+.hero-confirm p {
+  margin: 0;
+  color: var(--color-text);
+  text-align: center;
+}
+
 .hero-data-status {
   margin-top: 16px;
   color: var(--color-text-muted);
@@ -136,7 +150,7 @@
   .hero-buttons {
     flex-direction: column;
     width: 100%;
-    max-width: 250px;
+    max-width: 280px;
   }
 
   .hero-buttons .btn-primary,

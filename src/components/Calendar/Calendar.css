@@ -1313,7 +1313,8 @@
   margin: 0 auto;
 }
 
-.calendar__wrapper.capturing .calendar__actions {
+.calendar__wrapper.capturing .calendar__actions,
+.calendar__wrapper.capturing .planos {
   display: none !important;
 }
 
