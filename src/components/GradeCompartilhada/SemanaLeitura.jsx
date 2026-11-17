@@ -3,6 +3,17 @@ import { getCorMateria } from '../Calendar/calendarUtils';
 import { blocosDoDia, DIAS_GRADE, DIAS_LONGOS, HORA_FIM, HORA_INICIO } from '../Mobile/mobileGrade';
 import './GradeCompartilhada.css';
 
+/** Aulas seguidas da mesma matéria no mesmo dia (ex.: 8–10 e 10–11) viram um bloco só. */
+function blocosUnidos(grade, dia) {
+  const unidos = [];
+  for (const bloco of blocosDoDia(grade, dia)) {
+    const anterior = unidos.find(item => item.codigo === bloco.codigo && item.fim === bloco.inicio);
+    if (anterior) anterior.fim = bloco.fim;
+    else unidos.push({ ...bloco });
+  }
+  return unidos;
+}
+
 /** Semana seg–sáb só pra ver (grade compartilhada). Funciona de 360 px ao desktop. */
 export default function SemanaLeitura({ grade }) {
   const horas = Array.from({ length: HORA_FIM - HORA_INICIO }, (_, indice) => HORA_INICIO + indice);
@@ -17,11 +28,12 @@ export default function SemanaLeitura({ grade }) {
       </div>
       {DIAS_GRADE.map(dia => (
         <div key={dia} className="sl__col" role="list" aria-label={`Aulas de ${DIAS_LONGOS[dia]}`}>
-          {blocosDoDia(grade, dia).map(bloco => (
+          {blocosUnidos(grade, dia).map(bloco => (
             <div
               key={bloco.key}
               role="listitem"
               className="sl__bloco"
+              data-horas={Math.min(bloco.fim - bloco.inicio, 3)}
               aria-label={`${bloco.materia.nome}, ${DIAS_LONGOS[dia]} das ${bloco.inicio}h às ${bloco.fim}h, turma ${bloco.materia.turmaId}`}
               style={{
                 '--c': getCorMateria(bloco.codigo, grade),

@@ -35,15 +35,12 @@ export default function GradeCompartilhada({
       <header className="gc__topo">
         <button className="btn-voltar" type="button" onClick={onFechar}>
           <i className="fi fi-br-arrow-left" aria-hidden="true" />
-          <span className="btn-voltar__text">Sair</span>
+          <span className="btn-voltar__text">Voltar</span>
         </button>
         <div className="gc__titulos">
-          <p className="gc__selo">
-            <i className="fi fi-br-link" aria-hidden="true" /> Grade compartilhada de {periodo}
-          </p>
-          <h2 id="gc-titulo" className="gc__titulo">{semestre}º semestre · {cursoNome}</h2>
+          <h2 id="gc-titulo" className="gc__titulo">Grade compartilhada de {periodo}</h2>
           <p className="gc__sub">
-            Matriz {matriz} · {materias.length} {materias.length === 1 ? 'matéria' : 'matérias'} · {creditos} créditos
+            {semestre}º semestre · {cursoNome} · Matriz {matriz} · {materias.length} {materias.length === 1 ? 'matéria' : 'matérias'} · {creditos} créditos
           </p>
         </div>
       </header>

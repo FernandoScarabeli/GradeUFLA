@@ -206,6 +206,7 @@
 
 .cmp__malha {
   width: 100%;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 3px;
   padding: 6px;
@@ -218,6 +219,10 @@
   padding: 4px;
 }
 
+.cmp__malha thead th:first-child {
+  width: 48px;
+}
+
 .cmp__malha tbody th {
   width: 44px;
   text-align: right;
@@ -228,12 +233,13 @@
   height: 28px;
   padding: 2px 4px;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.06);
   white-space: nowrap;
 }
 
+/* Livre pra todos: tinta leve; o que chama atenção é quem ocupa. */
 .cmp__celula--livre {
-  background: rgba(0, 240, 181, 0.22);
+  background: rgba(0, 240, 181, 0.09);
 }
 
 .cmp__marca {

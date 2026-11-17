@@ -34,6 +34,8 @@
 
 html {
   scroll-behavior: smooth;
+  /* Fundo de segurança atrás do gradiente do body (rolagem elástica, páginas curtas). */
+  background-color: var(--color-onyx);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -53,6 +55,9 @@ html {
 body {
   /* Slightly lighter onyx with a soft glass gradient */
   background: linear-gradient(180deg, rgba(18,18,22,0.98) 0%, rgba(28,28,32,0.98) 100%);
+  /* Sem altura mínima o gradiente se repete em faixas quando a página é mais baixa que a janela. */
+  min-height: 100vh;
+  background-attachment: fixed;
   color: var(--color-text);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   -webkit-font-smoothing: antialiased;
