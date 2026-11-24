@@ -24,6 +24,7 @@
   --color-surface-light: #252529;
   --color-text: #eaeaea;
   --color-text-muted: #9a9a9a;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 * {

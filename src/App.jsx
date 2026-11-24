@@ -705,6 +705,7 @@ function App() {
             onClose={() => setModalMateria(null)}
             onSave={handleAddMateria}
             onRemove={handleRemoveMateria}
+            onConfirmMinimo={handleConfirmMinimo}
             materiasAprovadas={materiasAprovadas}
             materiasNoCalendario={materiasNoCalendario}
             materiasMinimoConfirmadas={minimoConfirmados}

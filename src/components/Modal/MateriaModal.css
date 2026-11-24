@@ -1,0 +1,620 @@
+/* ========================================
+   Modal da matéria (desktop)
+   A semana no centro: passar o mouse numa turma desenha ela na sua grade.
+   ======================================== */
+
+.mm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(6, 6, 9, 0.78);
+  animation: mm-fade-in 200ms var(--ease-out);
+}
+
+.mm {
+  --mm-linha: rgba(255, 255, 255, 0.07);
+  --mm-fundo-2: #141418;
+  --mm-erro: #f27a83;
+  --mm-semana-h: 312px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(1000px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: hidden auto;
+  background: var(--color-surface);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  box-shadow: 0 32px 80px -24px rgba(0, 0, 0, 0.8);
+  color: var(--color-text);
+  outline: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  animation: mm-in 240ms var(--ease-out);
+}
+
+.mm .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.mm ::selection { background: rgba(0, 240, 181, 0.3); color: #fff; }
+
+.mm button { font: inherit; }
+
+.mm button:focus-visible {
+  outline: 2px solid var(--color-tropical-mint);
+  outline-offset: 2px;
+}
+
+/* ---------- cabeçalho ---------- */
+
+.mm__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: start;
+  gap: 16px;
+  padding: 26px 22px 22px 28px;
+}
+
+.mm__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.mm__meta > * {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.mm__meta code {
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+  letter-spacing: 0.03em;
+  color: var(--color-text);
+}
+
+.mm__titulo {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: #fff;
+  text-wrap: balance;
+}
+
+.mm__status {
+  --tom: var(--color-tropical-mint);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 26px;
+  padding: 7px 14px 7px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tom) 12%, transparent);
+  color: color-mix(in srgb, var(--tom) 70%, #fff);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: mm-status 260ms var(--ease-out);
+}
+
+.mm__status:has(.mm__status-acao) { padding-right: 6px; }
+.mm__status[data-tom="livre"] { color: var(--color-text); background: rgba(255, 255, 255, 0.06); }
+.mm__status[data-tom="livre"] i { color: var(--color-tropical-mint); }
+.mm__status[data-tom="aviso"] { --tom: var(--color-royal-gold); }
+.mm__status[data-tom="erro"] { --tom: var(--color-watermelon); color: var(--mm-erro); }
+.mm__status i { display: flex; }
+
+.mm__status-acao {
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.mm__fechar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  margin-top: 20px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-muted);
+  font-size: 1.15rem;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.mm__fechar i { display: flex; }
+
+/* ---------- palco: semana + turmas ---------- */
+
+.mm__palco {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  border-top: 1px solid var(--mm-linha);
+}
+
+.mm__semana-col {
+  padding: 22px 24px 18px 28px;
+  border-right: 1px solid var(--mm-linha);
+}
+
+.mm-semana__cab {
+  display: grid;
+  grid-template-columns: 30px repeat(6, 1fr);
+  margin-bottom: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.mm-semana__corpo {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px repeat(6, 1fr);
+  height: var(--mm-semana-h);
+  border-radius: 12px;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px) 0 0 / 100% calc(100% / 8),
+    var(--mm-fundo-2);
+}
+
+.mm-semana__horas { position: relative; }
+
+.mm-semana__horas span {
+  position: absolute;
+  left: 6px;
+  transform: translateY(-50%);
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.mm-semana__horas span:first-child { transform: translateY(3px); }
+.mm-semana__horas span:last-child { transform: translateY(-115%); }
+
+.mm-semana__dia {
+  position: relative;
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.mm-semana__bloco,
+.mm-semana__foco {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-radius: 5px;
+}
+
+.mm-semana__bloco {
+  background: color-mix(in srgb, var(--c) 30%, #1c1c22);
+  transition: background-color 150ms ease;
+}
+
+.mm-semana__bloco[data-choque] {
+  background: color-mix(in srgb, var(--color-watermelon) 55%, #1c1c22);
+  box-shadow: 0 0 0 1px var(--color-watermelon);
+}
+
+.mm-semana__foco {
+  z-index: 1;
+  transform-origin: 50% 0;
+  background: var(--color-tropical-mint);
+  box-shadow: 0 6px 18px -6px rgba(0, 240, 181, 0.7);
+  animation: mm-previa 180ms var(--ease-out);
+}
+
+.mm-semana__foco[data-estado="choque"] {
+  background: repeating-linear-gradient(135deg, rgba(232, 72, 85, 0.9) 0 5px, rgba(232, 72, 85, 0.55) 5px 10px);
+  box-shadow: 0 6px 18px -6px rgba(232, 72, 85, 0.7);
+}
+
+.mm-semana__foco[data-estado="bloqueada"],
+.mm-semana__foco[data-estado="off"] {
+  background: rgba(0, 240, 181, 0.12);
+  box-shadow: inset 0 0 0 1.5px rgba(0, 240, 181, 0.6);
+}
+
+.mm-semana__foco[data-estado="encaixou"] { animation: mm-encaixa 340ms var(--ease-out); }
+
+.mm__legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 12px 0 0 30px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.mm__legenda span { display: inline-flex; align-items: center; gap: 6px; }
+
+.mm__legenda span::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.mm__legenda [data-k="grade"]::before { background: #3a3d48; }
+.mm__legenda [data-k="turma"]::before { background: var(--color-tropical-mint); }
+.mm__legenda [data-k="choque"]::before { background: var(--color-watermelon); }
+
+/* ---------- turmas ---------- */
+
+.mm__turmas-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 18px 18px 18px 20px;
+}
+
+.mm__secao-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 8px 10px;
+}
+
+.mm__secao {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.mm__secao-info {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.mm__secao-info b { color: var(--color-tropical-mint); font-weight: 700; }
+
+.mm__turmas {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  max-height: calc(var(--mm-semana-h) + 44px);
+  margin: 0;
+  padding: 2px 6px 2px 2px;
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+.mm-turma {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 120ms var(--ease-out);
+}
+
+.mm-turma:active:not([aria-disabled="true"]) { transform: scale(0.985); }
+
+.mm-turma__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mm-turma__id {
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+.mm-turma__fim {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.mm-turma__fim i { display: flex; }
+
+.mm-turma__acao {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 150ms ease;
+}
+
+.mm-turma__acao i { transition: transform 150ms var(--ease-out); }
+
+.mm-turma__horarios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+.mm-turma__horarios b { font-weight: 600; color: var(--color-text); }
+.mm-turma__sala { color: var(--color-text-muted); }
+
+.mm-turma__prof { font-size: 0.78rem; color: var(--color-text-muted); }
+.mm-turma__filtro { color: var(--color-royal-gold); font-weight: 700; }
+.mm-turma__choque { font-size: 0.78rem; font-weight: 600; color: var(--mm-erro); }
+
+.mm-turma[data-estado="atual"] {
+  background: rgba(0, 240, 181, 0.08);
+  border-color: rgba(0, 240, 181, 0.45);
+  cursor: default;
+}
+
+.mm-turma[data-estado="atual"] .mm-turma__id,
+.mm-turma[data-estado="atual"] .mm-turma__fim { color: var(--color-tropical-mint); }
+
+.mm-turma[data-recem] { animation: mm-escolhida 420ms var(--ease-out); }
+
+.mm-turma[data-estado="choque"],
+.mm-turma[data-estado="off"],
+.mm-turma[data-estado="bloqueada"] { cursor: not-allowed; }
+
+.mm-turma[data-estado="choque"] { background: rgba(232, 72, 85, 0.05); }
+
+.mm-turma:is([data-estado="choque"], [data-estado="off"], [data-estado="bloqueada"]) :is(.mm-turma__id, .mm-turma__horarios) {
+  opacity: 0.5;
+}
+
+.mm-turma[data-professor]:not([data-estado="atual"]) { border-color: rgba(249, 220, 92, 0.5); }
+
+/* ---------- trilha: pede → esta → libera ---------- */
+
+.mm-trilha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  padding: 20px 28px 22px;
+  border-top: 1px solid var(--mm-linha);
+  background: var(--mm-fundo-2);
+}
+
+.mm-trilha__col {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mm-trilha__col[data-lado="antes"] { justify-items: end; text-align: right; }
+
+.mm-trilha__rotulo {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.mm-trilha__col[data-lado="antes"] .mm-trilha__rotulo { padding-right: 18px; }
+.mm-trilha__col[data-lado="depois"] .mm-trilha__rotulo { padding-left: 18px; }
+.mm-trilha__rotulo b { color: #fff; }
+.mm-trilha__cadeia { font-weight: 500; }
+
+.mm-trilha__nos {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.mm-trilha__col[data-lado="antes"] .mm-trilha__nos { align-items: flex-end; padding-right: 18px; }
+.mm-trilha__col[data-lado="depois"] .mm-trilha__nos { align-items: flex-start; padding-left: 18px; }
+
+/* Barramento que junta os nós e leva até a matéria do centro */
+.mm-trilha__nos::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.mm-trilha__col[data-lado="antes"] .mm-trilha__nos::before { right: 0; }
+.mm-trilha__col[data-lado="depois"] .mm-trilha__nos::before { left: 0; }
+
+.mm-no {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.8rem;
+  line-height: 1.3;
+  color: var(--color-text);
+}
+
+.mm-no::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.mm-trilha__col[data-lado="antes"] .mm-no::after { left: 100%; }
+.mm-trilha__col[data-lado="depois"] .mm-no::after { right: 100%; }
+
+.mm-no i { display: flex; flex: none; font-size: 0.85em; }
+.mm-no__nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mm-no__tipo { flex: none; font-size: 0.7rem; color: var(--color-text-muted); }
+
+.mm-no[data-ok="true"] i { color: var(--color-tropical-mint); }
+.mm-no[data-ok="false"] { background: rgba(232, 72, 85, 0.12); color: var(--mm-erro); }
+
+.mm-no[data-devez="true"] { background: rgba(0, 240, 181, 0.1); color: #c9fff0; }
+.mm-no[data-devez="true"] i { color: var(--color-tropical-mint); }
+.mm-no[data-devez="false"] { color: var(--color-text-muted); }
+
+.mm-trilha__nada,
+.mm-trilha__mais {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.mm-trilha__nada { padding: 5px 0; }
+.mm-trilha__mais { padding: 0 11px; }
+
+.mm-trilha__centro {
+  position: relative;
+  display: flex;
+  align-items: center;
+  /* mesma altura do rótulo das colunas, para a linha cair no meio das listas */
+  padding-top: calc(0.75rem * 1.5 + 8px);
+}
+
+.mm-trilha:has([data-lado="antes"][data-vazia]) .mm-trilha__centro::before,
+.mm-trilha:has([data-lado="depois"][data-vazia]) .mm-trilha__centro::after { visibility: hidden; }
+
+.mm-trilha__centro::before,
+.mm-trilha__centro::after {
+  content: '';
+  width: 22px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.mm-trilha__esta {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--color-tropical-mint);
+  color: #06281f;
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+/* ---------- rodapé ---------- */
+
+.mm__pe {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 18px;
+  border-top: 1px solid var(--mm-linha);
+}
+
+.mm__remover {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--mm-erro);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.mm__remover i { display: flex; }
+
+/* ---------- hover só onde existe ponteiro ---------- */
+
+@media (hover: hover) and (pointer: fine) {
+  .mm__fechar:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+  .mm__status-acao:hover { background: rgba(255, 255, 255, 0.2); }
+  .mm-turma[data-estado="livre"]:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(0, 240, 181, 0.3); }
+  .mm-turma[data-estado="livre"]:hover .mm-turma__acao { color: var(--color-tropical-mint); }
+  .mm-turma[data-estado="livre"]:hover .mm-turma__acao i { transform: translateX(3px); }
+  .mm__remover:hover { background: rgba(232, 72, 85, 0.1); }
+}
+
+.mm-turma[data-estado="livre"]:focus-visible .mm-turma__acao { color: var(--color-tropical-mint); }
+
+/* ---------- telas estreitas ---------- */
+
+@media (max-width: 860px) {
+  .mm__palco { grid-template-columns: 1fr; }
+  .mm__semana-col { border-right: 0; border-bottom: 1px solid var(--mm-linha); }
+  .mm__turmas { max-height: none; overflow: visible; }
+  .mm__head { grid-template-columns: minmax(0, 1fr) auto; }
+  .mm__status { grid-column: 1 / -1; grid-row: 2; justify-self: start; margin-top: 0; }
+  .mm__fechar { margin-top: 0; }
+}
+
+/* ---------- movimento ---------- */
+
+@keyframes mm-fade-in { from { opacity: 0; } }
+
+@keyframes mm-in { from { opacity: 0; transform: scale(0.96); } }
+
+@keyframes mm-status { from { opacity: 0; transform: scale(0.94); } }
+
+/* A prévia cresce de cima para baixo, como a aula ocupando o horário. */
+@keyframes mm-previa { from { opacity: 0; transform: scaleY(0.7); } }
+
+/* A turma escolhida cai no lugar. */
+@keyframes mm-encaixa {
+  0% { opacity: 0; transform: translateY(-10px) scale(1.08); }
+  60% { opacity: 1; }
+}
+
+@keyframes mm-escolhida {
+  from { box-shadow: 0 0 0 6px rgba(0, 240, 181, 0.25); }
+  to { box-shadow: 0 0 0 0 rgba(0, 240, 181, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mm,
+  .mm__status,
+  .mm-semana__foco,
+  .mm-semana__foco[data-estado="encaixou"] { animation: mm-fade-in 160ms ease; }
+  .mm-turma[data-recem] { animation: none; }
+  .mm-turma,
+  .mm-turma__acao i { transition: background-color 150ms ease, border-color 150ms ease; }
+}
+
+/* O barramento só vai do primeiro ao último nó. */
+.mm-trilha__nos { align-self: center; }
+.mm-trilha__col[data-vazia] .mm-trilha__nos::before { display: none; }

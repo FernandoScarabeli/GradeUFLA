@@ -70,7 +70,7 @@ test.describe('fluxos críticos com dados controlados', () => {
     await expect(card).toContainText('libera 1');
 
     const modal = await openSubject(page, 'Programação Web');
-    const destrava = modal.getByRole('region', { name: 'O que esta matéria destrava' });
+    const destrava = modal.getByRole('region', { name: 'Trilha da matéria' });
     await expect(destrava).toContainText('Programação Web Avançada');
     await expect(destrava).toContainText('libera de vez');
     await modal.getByRole('button', { name: 'Fechar detalhes da disciplina' }).click();
@@ -101,7 +101,7 @@ test.describe('fluxos críticos com dados controlados', () => {
       const dialog = await openSubject(page, subject);
       const turma = dialog.getByRole('button', { name: /Turma/ });
       await expect(turma).toHaveAttribute('aria-disabled', 'true');
-      await expect(turma).toContainText(/Conflito com Programação Web/);
+      await expect(turma).toContainText(/Choca com Programação Web/);
       await dialog.getByRole('button', { name: 'Fechar detalhes da disciplina' }).click();
     }
 
@@ -211,7 +211,7 @@ test.describe('fluxos críticos com dados controlados', () => {
 
     const dialog = await openSubject(page, 'Programação Web');
     await expect(dialog.getByText('· professor do filtro')).toHaveCount(1);
-    await expect(dialog.locator('.turma-item--professor')).toContainText('Turma A');
+    await expect(dialog.locator('.mm-turma[data-professor]')).toContainText('Turma A');
   });
 
   test('bloqueia seleção acima do limite de 32 créditos', async ({ page }) => {
@@ -220,9 +220,11 @@ test.describe('fluxos críticos com dados controlados', () => {
     await expect(page.locator('.calendar__credits')).toContainText('32');
 
     const dialog = await openSubject(page, 'Projeto Excedente');
-    await dialog.getByRole('button', { name: /Turma A/ }).click();
+    await expect(dialog.getByText('Passaria de 32 créditos')).toBeVisible();
+    const turma = dialog.getByRole('button', { name: /Turma A/ });
+    await expect(turma).toHaveAttribute('aria-disabled', 'true');
+    await turma.click({ force: true });
 
-    await expect(page.getByText(/excederia o limite de 32 créditos/i)).toBeVisible();
     await expect(page.locator('.calendar__credits')).toContainText('32');
   });
 

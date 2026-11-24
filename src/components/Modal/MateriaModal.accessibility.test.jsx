@@ -41,7 +41,7 @@ test('MateriaModal identifica o dialog, prende foco, fecha com Escape e devolve 
   expect(close).toHaveFocus();
 
   fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
-  expect(screen.getByRole('button', { name: /remover do calendário/i })).toHaveFocus();
+  expect(screen.getByRole('button', { name: /remover da grade/i })).toHaveFocus();
 
   fireEvent.keyDown(document, { key: 'Escape' });
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

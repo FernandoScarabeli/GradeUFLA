@@ -213,9 +213,9 @@ test('troca e remove uma turma pelo modal conectado ao App', async () => {
   fireEvent.click(within(dialog).getByRole('button', { name: /fechar detalhes/i }));
 
   dialog = openAlgoritmosModal();
-  expect(within(dialog).getByText('Turma B').closest('.turma-item')).toHaveTextContent(/horário escolhido/i);
+  expect(within(dialog).getByText('Turma B').closest('.mm-turma')).toHaveTextContent(/na sua grade/i);
 
-  fireEvent.click(within(dialog).getByRole('button', { name: /remover do calendário/i }));
+  fireEvent.click(within(dialog).getByRole('button', { name: /remover da grade/i }));
 
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(screen.getByText('Créditos:').parentElement).toHaveTextContent('Créditos: 0');
@@ -316,7 +316,7 @@ test('recarregar a página volta pra montagem com a grade salva', async () => {
   expect(await screen.findByRole('heading', { name: /minha grade - 2º semestre/i })).toBeInTheDocument();
   expect(creditos()).toHaveTextContent('Créditos: 4');
   const dialog = openAlgoritmosModal();
-  expect(within(dialog).getByText('Turma B').closest('.turma-item')).toHaveTextContent(/horário escolhido/i);
+  expect(within(dialog).getByText('Turma B').closest('.mm-turma')).toHaveTextContent(/na sua grade/i);
 });
 
 test('cada plano guarda a sua grade e o duplicar copia o plano ativo', async () => {
