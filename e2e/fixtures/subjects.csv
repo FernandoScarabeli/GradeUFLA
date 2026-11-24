@@ -7,3 +7,4 @@ G014,2023/01,2,HYB204,Sistemas Híbridos,4,obrigatoria,,,"[{""id"":""H"",""horar
 G014,2023/01,2,CRD205,Projeto de 20 Créditos,20,obrigatoria,,,"[{""id"":""A"",""horarios"":[{""dia"":1,""inicio"":12,""fim"":13}],""anp"":false}]"
 G014,2023/01,2,CRD206,Projeto de 12 Créditos,12,obrigatoria,,,"[{""id"":""A"",""horarios"":[{""dia"":3,""inicio"":12,""fim"":13}],""anp"":false}]"
 G014,2023/01,2,CRD207,Projeto Excedente,2,obrigatoria,,,"[{""id"":""A"",""horarios"":[{""dia"":5,""inicio"":12,""fim"":13}],""anp"":false}]"
+G014,2023/01,3,AVA301,Programação Web Avançada,4,obrigatoria,,Forte: NOR201,"[{""id"":""A"",""horarios"":[{""dia"":6,""inicio"":14,""fim"":16}],""anp"":false}]"

@@ -43,7 +43,8 @@ function CalendarGrid({
   isMobile,
   onDragStartFromCalendar,
   onMateriaClick,
-  onCellHover
+  onCellHover,
+  onEmptyCellClick = null
 }) {
   return (
     <div className="calendar__container">
@@ -133,6 +134,18 @@ function CalendarGrid({
                         ))}
                       </div>
                     )}
+                    {onEmptyCellClick && materias.length === 0 && !preview && indexDia !== 0 && (
+                      <button
+                        type="button"
+                        className="calendar__cell-add"
+                        tabIndex={-1}
+                        aria-label={`O que encaixa ${DIAS_SEMANA[indexDia]} ${horario}`}
+                        title="Ver o que encaixa neste horário"
+                        onClick={() => onEmptyCellClick(indexDia, parseInt(horario, 10))}
+                      >
+                        <i className="fi fi-br-plus" aria-hidden="true" />
+                      </button>
+                    )}
                     {preview && materias.length === 0 && (
                       <div className="calendar__cell-preview-content" style={{ color: preview.cor }}></div>
                     )}
@@ -217,7 +230,8 @@ function CalendarBoard({
   onMateriaClick,
   onCellHover,
   materiasNoCalendario,
-  planosBar = null
+  planosBar = null,
+  onEmptyCellClick = null
 }) {
   return (
     <div className="calendar__wrapper" ref={wrapperRef}>
@@ -251,6 +265,7 @@ function CalendarBoard({
         onDragStartFromCalendar={onDragStartFromCalendar}
         onMateriaClick={onMateriaClick}
         onCellHover={onCellHover}
+        onEmptyCellClick={onEmptyCellClick}
       />
 
       <CalendarLegend

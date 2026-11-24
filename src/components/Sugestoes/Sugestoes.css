@@ -1,0 +1,267 @@
+/* ---------- "Fazer esta matéria libera" ---------- */
+
+.destrava {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.destrava--mobile {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.destrava__titulo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.destrava--mobile .destrava__titulo { font-size: 12px; }
+
+.destrava__titulo i {
+  display: flex;
+  color: var(--color-tropical-mint);
+}
+
+.destrava__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.destrava__item {
+  display: grid;
+  gap: 1px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+.destrava__item[data-de-vez="true"] { border-left-color: var(--color-tropical-mint); }
+
+.destrava__nome {
+  font-size: 0.9rem;
+  color: var(--color-text);
+  line-height: 1.3;
+}
+
+.destrava__meta,
+.destrava__rodape {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
+.destrava__item[data-de-vez="true"] .destrava__meta { color: var(--color-tropical-mint); }
+
+.destrava__rodape { margin: 8px 0 0; }
+
+/* Selo "libera N" nos cards e nas linhas da lista */
+.selo-destrava {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-tropical-mint);
+  white-space: nowrap;
+}
+
+.selo-destrava i { display: flex; font-size: 0.85em; }
+
+/* ---------- "O que encaixa neste horário" ---------- */
+
+.encaixe__sub {
+  margin: 0 0 14px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.encaixe__grupo + .encaixe__grupo { margin-top: 14px; }
+
+.encaixe__grupo-titulo {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.encaixe__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.encaixe__item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.encaixe__cabeca {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.encaixe__nome {
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.92rem;
+  line-height: 1.3;
+}
+
+.encaixe__meta {
+  flex: none;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.encaixe__info {
+  margin: 3px 0 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.encaixe__turmas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.encaixe__turma {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 240, 181, 0.35);
+  background: rgba(0, 240, 181, 0.08);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.encaixe__turma:hover,
+.encaixe__turma:focus-visible {
+  background: rgba(0, 240, 181, 0.18);
+  border-color: var(--color-tropical-mint);
+}
+
+.encaixe__turma:focus-visible { outline: 2px solid var(--color-tropical-mint); outline-offset: 2px; }
+
+.encaixe__turma b { font-weight: 600; }
+
+.encaixe__turma span { color: var(--color-text-muted); }
+
+.encaixe__vazio {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+/* Botão "+" que aparece no horário vazio da grade do desktop */
+.calendar__cell-add {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--color-tropical-mint);
+  font-size: 0.8rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.calendar__cell:hover .calendar__cell-add,
+.calendar__cell-add:focus-visible { opacity: 1; }
+
+.calendar__cell-add:focus-visible { outline: 2px solid var(--color-tropical-mint); outline-offset: -2px; }
+
+.calendar__cell-add i { display: inline-flex; }
+
+/* Durante o arraste o "+" sai do caminho */
+.calendar--dragging .calendar__cell-add { display: none; }
+
+/* Horário livre na agenda do celular. O aviso de dia vazio deixa o toque passar para ele. */
+.m-empty { pointer-events: none; }
+
+.m-agenda .m-free {
+  position: absolute;
+  left: 4px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  color: rgba(255, 255, 255, 0.22);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.m-agenda .m-free i { display: flex; font-size: 11px; color: inherit; }
+
+.m-agenda .m-free:active,
+.m-agenda .m-free:focus-visible {
+  color: var(--color-tropical-mint);
+  background: rgba(0, 240, 181, 0.06);
+  border-radius: 10px;
+}
+
+.m-agenda .m-free:focus-visible { outline: 2px solid var(--color-tropical-mint); outline-offset: -2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .calendar__cell-add,
+  .encaixe__turma { transition: none; }
+}
+
+/* Modal de encaixe: título fixo, lista rolando */
+.modal-content--encaixe {
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-content--encaixe .modal-titulo { padding-right: 40px; }
+
+.modal-content__scroll {
+  min-height: 0;
+  overflow-y: auto;
+  margin-right: -10px;
+  padding-right: 10px;
+}
+
+.materia-card__destrava {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 240, 181, 0.12);
+}

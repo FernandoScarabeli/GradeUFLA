@@ -12,6 +12,7 @@ import {
 } from '../../domain/gradeRules';
 import { turmaDoProfessor } from '../../domain/professores';
 import useAccessibleDialog from '../../hooks/useAccessibleDialog';
+import DestravaInfo from '../Sugestoes/DestravaInfo';
 import './Modal.css';
 
 const descreverConflito = conflito => {
@@ -268,6 +269,13 @@ const MateriaModal = ({
             </div>
           </div>
         )}
+
+        <DestravaInfo
+          codigo={materia.codigo}
+          allMateriasList={allMateriasList}
+          materiasAprovadas={materiasAprovadas}
+          prerequisitosConfirmados={materiasMinimoConfirmadas}
+        />
       </div>
     </div>
   );

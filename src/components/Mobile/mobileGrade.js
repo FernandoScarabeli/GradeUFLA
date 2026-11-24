@@ -8,9 +8,9 @@ import {
   materiaComTurma,
   normalizarDia,
   normalizarHora,
-  SATURDAY_INDEX,
-  verificarConflitoMateria
+  SATURDAY_INDEX
 } from '../../domain/gradeRules';
+import { avaliarTurma } from '../../domain/sugestoes';
 import { professorDaMateriaQueCasa, semAcento } from '../../domain/professores';
 
 export const DIAS_GRADE = [1, 2, 3, 4, 5, 6];
@@ -59,64 +59,9 @@ export function blocosDoDia(materiasNoCalendario = {}, dia) {
   return blocos.sort((a, b) => a.inicio - b.inicio);
 }
 
-/** Matérias que ainda podem ir para a grade, separadas como nas abas da gaveta. */
-export function listasParaAdicionar({
-  materiasPorSemestre = {},
-  eletivas = [],
-  semestreAtual,
-  materiasAprovadas = [],
-  materiasNoCalendario = {}
-}) {
-  const aprovadas = new Set(materiasAprovadas);
-  const livre = materia => !aprovadas.has(materia.codigo) && !materiasNoCalendario[materia.codigo];
-  const atual = Number(semestreAtual);
-  const semestres = Object.keys(materiasPorSemestre)
-    .map(Number)
-    .filter(numero => Number.isFinite(numero) && numero > 0)
-    .sort((a, b) => a - b);
-
-  const doSemestre = (materiasPorSemestre[atual] || []).filter(livre);
-  const pendentes = [];
-  const futuras = [];
-  semestres.forEach(numero => {
-    if (numero === atual) return;
-    const destino = numero < atual ? pendentes : futuras;
-    (materiasPorSemestre[numero] || []).forEach(materia => {
-      if (livre(materia)) destino.push({ ...materia, semestreOriginal: numero });
-    });
-  });
-
-  return {
-    semestre: doSemestre,
-    pendentes,
-    eletivas: (Array.isArray(eletivas) ? eletivas : []).filter(livre),
-    futuras
-  };
-}
-
 // Mantido aqui por compatibilidade: a fonte é o domínio.
 export { materiaComTurma };
-
-/** Situação de cada turma: disponível, sem horário, em conflito ou já na grade. */
-export function avaliarTurma(materia, turma, materiasNoCalendario = {}) {
-  const atual = materiasNoCalendario[materia.codigo]?.turmaId === turma.id;
-  const selecionavel = isTurmaSelecionavel(turma);
-  const candidata = materiaComTurma(materia, turma);
-  let conflito = selecionavel
-    ? verificarConflitoMateria(candidata, materiasNoCalendario, { ignorarCodigo: materia.codigo })
-    : { temConflito: false };
-  // Turma híbrida: os horários da semana cabem, mas a hora ANP do sábado também precisa caber.
-  if (!conflito.temConflito && isAnpTurma(candidata)
-    && findNextAnpHour(materiasNoCalendario, { ignorarCodigo: materia.codigo }) == null) {
-    conflito = { temConflito: true, mensagem: 'Sem vaga ANP no sábado' };
-  }
-  return {
-    atual,
-    selecionavel,
-    conflito: conflito.temConflito ? conflito : null,
-    disponivel: selecionavel && !conflito.temConflito && !atual
-  };
-}
+export { avaliarTurma, listasParaAdicionar } from '../../domain/sugestoes';
 
 export function descreverConflito(conflito) {
   if (!conflito) return '';

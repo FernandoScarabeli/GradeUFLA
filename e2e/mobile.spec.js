@@ -101,6 +101,24 @@ test.describe('fluxo mobile com dados controlados', () => {
     expect(download.suggestedFilename()).toBe('grade-2semestre.png');
   });
 
+  test('toca num horário livre, vê o que encaixa e adiciona; o detalhe mostra o que a matéria libera', async ({ page }) => {
+    await page.getByRole('tab', { name: /segunda/ }).click();
+    await page.getByRole('button', { name: 'O que encaixa segunda às 09:00' }).click();
+    const encaixe = page.getByRole('dialog', { name: 'O que encaixa Seg 09:00' });
+    await expect(encaixe.getByRole('button', { name: 'Adicionar Banco de Dados, turma A' })).toBeVisible();
+    await encaixe.getByRole('button', { name: 'Adicionar Programação Web, turma A' }).click();
+
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(credits(page)).toHaveAccessibleName('4 de 32 créditos');
+    await expect(page.getByRole('status').filter({ hasText: 'Programação Web adicionada' })).toBeVisible();
+    // A hora agora ocupada some da lista de horários livres.
+    await expect(page.getByRole('button', { name: 'O que encaixa segunda às 09:00' })).toHaveCount(0);
+
+    await page.getByRole('tabpanel').getByRole('button', { name: /Programação Web/ }).click();
+    const detalhe = page.getByRole('dialog', { name: 'Programação Web' });
+    await expect(detalhe.getByRole('region', { name: 'O que esta matéria destrava' })).toContainText('Programação Web Avançada');
+  });
+
   test('busca por professor e destaca a turma dele', async ({ page }) => {
     await page.getByRole('button', { name: 'Adicionar matéria' }).click();
     const sheet = page.getByRole('dialog', { name: 'Adicionar matéria' });

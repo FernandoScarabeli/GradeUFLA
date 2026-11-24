@@ -1,6 +1,8 @@
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getNomeMateriaOuCodigo } from '../../data';
-import { calcularTotalCreditos } from '../../domain/gradeRules';
+import { calcularTotalCreditos, materiaComTurma } from '../../domain/gradeRules';
+import { listasParaAdicionar, oQueEncaixa } from '../../domain/sugestoes';
+import EncaixeModal from '../Sugestoes/EncaixeModal';
 import CalendarBoard from './CalendarBoard';
 import CalendarSidebar from './CalendarSidebar';
 import PrerequisiteModal from '../Modal/PrerequisiteModal';
@@ -43,6 +45,7 @@ const Calendar = forwardRef(({
     tipo: null
   });
   const [isMobile, setIsMobile] = useState(false);
+  const [slotEncaixe, setSlotEncaixe] = useState(null);
   const calendarTableRef = useRef(null);
   const wrapperRef = useRef(null);
   const horarios = useMemo(() => gerarHorarios(7, 23), []);
@@ -144,6 +147,31 @@ const Calendar = forwardRef(({
     podeCompartilhar
   });
 
+  const encaixe = useMemo(() => {
+    if (!slotEncaixe) return null;
+    const listas = listasParaAdicionar({
+      materiasPorSemestre,
+      eletivas,
+      semestreAtual,
+      materiasAprovadas,
+      materiasNoCalendario
+    });
+    return oQueEncaixa(slotEncaixe.dia, slotEncaixe.hora, listas, {
+      materiasAprovadas,
+      materiasNoCalendario,
+      prerequisitosConfirmados: materiasMinimoConfirmadas,
+      allMateriasList
+    });
+  }, [slotEncaixe, materiasPorSemestre, eletivas, semestreAtual, materiasAprovadas, materiasNoCalendario, materiasMinimoConfirmadas, allMateriasList]);
+
+  const abrirEncaixe = useCallback((dia, hora) => setSlotEncaixe({ dia, hora }), []);
+  const fecharEncaixe = useCallback(() => setSlotEncaixe(null), []);
+  const escolherNoEncaixe = (materia, turma) => {
+    if (!onAddMateria(materiaComTurma(materia, turma))) return;
+    setSlotEncaixe(null);
+    triggerToast(`${materia.nome} (turma ${turma.id}) adicionada.`, 'success');
+  };
+
   const openForteConfirm = (prereqs, parent) => {
     setMinimoModal({
       open: true,
@@ -196,7 +224,7 @@ const Calendar = forwardRef(({
 
   return (
     <section
-      className="calendar"
+      className={`calendar ${isDragging ? 'calendar--dragging' : ''}`}
       ref={ref}
       id="calendario"
       onMouseMove={handleMouseMove}
@@ -255,6 +283,7 @@ const Calendar = forwardRef(({
           onMateriaClick={onMateriaClick}
           onCellHover={handleCellHover}
           materiasNoCalendario={materiasNoCalendario}
+          onEmptyCellClick={abrirEncaixe}
           planosBar={planosBar ? { ...planosBar, onAviso: mensagem => triggerToast(mensagem, 'success') } : null}
         />
       </div>
@@ -278,6 +307,15 @@ const Calendar = forwardRef(({
       />
 
       <GoogleExportModal exportacao={googleExport} />
+
+      {encaixe && (
+        <EncaixeModal
+          slot={slotEncaixe}
+          resultado={encaixe}
+          onEscolher={escolherNoEncaixe}
+          onClose={fecharEncaixe}
+        />
+      )}
     </section>
   );
 });

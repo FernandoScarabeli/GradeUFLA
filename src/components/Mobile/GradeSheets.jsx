@@ -28,6 +28,11 @@ import {
   situacaoMateria
 } from './mobileGrade';
 import { professoresDasMaterias, turmaDoProfessor } from '../../domain/professores';
+import { contarDestravadas } from '../../domain/sugestoes';
+import DestravaInfo from '../Sugestoes/DestravaInfo';
+import EncaixeLista from '../Sugestoes/EncaixeLista';
+
+const destravaDe = (codigo, contexto) => contarDestravadas(codigo, contexto.allMateriasList, contexto);
 
 const nomes = codigos => codigos.map(getNomeMateriaOuCodigo).join(', ');
 
@@ -124,6 +129,7 @@ export function AddSheetContent({ titleId, listas, estado, setEstado, contexto, 
           const linha = textoSituacao(situacao);
           const turmas = (materia.turmas || []).length;
           const professor = professorDaBusca(materia, estado.busca);
+          const destrava = destravaDe(materia.codigo, contexto);
           return (
             <div key={materia.codigo} className="m-mrow-group">
               <button
@@ -140,6 +146,7 @@ export function AddSheetContent({ titleId, listas, estado, setEstado, contexto, 
                     {materia.semestreOriginal ? ` · ${materia.semestreOriginal}º sem` : ''}
                     {` · ${turmas} turma${turmas === 1 ? '' : 's'}`}
                     {professor && ` · Prof. ${professor}`}
+                    {destrava > 0 && <> · <span className="selo-destrava"><i className="fi fi-br-unlock" aria-hidden="true" />libera {destrava}</span></>}
                   </span>
                   {linha && (
                     <span className="m-mrow__state" data-tone={linha.classe}>
@@ -231,6 +238,7 @@ export function TurmaSheetContent({
   const total = calcularTotalAposSelecao(materiasNoCalendario, materia);
   const excede = total > CREDIT_MAX;
   const prereqBloqueia = !pendencias.podeAdicionar;
+  const destrava = destravaDe(materia.codigo, contexto);
 
   let nota = { texto: `${materia.creditos} créditos · sua grade ficará com ${total}`, erro: false };
   if (excede) {
@@ -252,7 +260,11 @@ export function TurmaSheetContent({
     <>
       <SheetHead titleId={titleId} title={materia.nome} onBack={onBack} onClose={onClose} />
       <div className="m-sheet__scroll">
-        <p className="m-lead m-lead--tight"><code>{materia.codigo}</code> · {materia.creditos} créditos · escolha uma turma</p>
+        <p className="m-lead m-lead--tight">
+          <code>{materia.codigo}</code> · {materia.creditos} créditos
+          {destrava > 0 && <> · <span className="selo-destrava"><i className="fi fi-br-unlock" aria-hidden="true" />libera {destrava}</span></>}
+          {' '}· escolha uma turma
+        </p>
         {prereqBloqueia && situacao.confirmavel && (
           <ConfirmarPrereq
             situacao={situacao}
@@ -373,6 +385,13 @@ export function DetailSheetContent({
               </ul>
             </div>
           )}
+          <DestravaInfo
+            codigo={entrada.codigo}
+            allMateriasList={contexto.allMateriasList}
+            materiasAprovadas={contexto.materiasAprovadas}
+            prerequisitosConfirmados={contexto.prerequisitosConfirmados}
+            variante="mobile"
+          />
         </div>
       </div>
       <div className="m-sheet__foot">
@@ -402,6 +421,18 @@ export function DetailSheetContent({
             <i className="fi fi-br-exchange" aria-hidden="true" />Trocar turma
           </button>
         </div>
+      </div>
+    </>
+  );
+}
+
+export function EncaixeSheetContent({ titleId, slot, resultado, onEscolher, onClose }) {
+  return (
+    <>
+      <SheetHead titleId={titleId} title={`O que encaixa ${DIAS_SEMANA[slot.dia]} ${pad2(slot.hora)}:00`} onClose={onClose} />
+      <div className="m-sheet__scroll">
+        <p className="m-lead m-lead--tight">Turmas com aula neste horário que não chocam com a sua grade. Toque numa turma para adicionar.</p>
+        <EncaixeLista resultado={resultado} onEscolher={onEscolher} />
       </div>
     </>
   );

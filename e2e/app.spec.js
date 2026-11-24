@@ -65,6 +65,34 @@ test.describe('fluxos críticos com dados controlados', () => {
     await completeFlow(page);
   });
 
+  test('mostra o que a matéria libera e o que encaixa num horário vazio', async ({ page }) => {
+    const card = page.locator('.materia-card').filter({ hasText: 'Programação Web' }).first();
+    await expect(card).toContainText('libera 1');
+
+    const modal = await openSubject(page, 'Programação Web');
+    const destrava = modal.getByRole('region', { name: 'O que esta matéria destrava' });
+    await expect(destrava).toContainText('Programação Web Avançada');
+    await expect(destrava).toContainText('libera de vez');
+    await modal.getByRole('button', { name: 'Fechar detalhes da disciplina' }).click();
+
+    await page.getByRole('button', { name: 'O que encaixa Seg 09:00' }).click();
+    const encaixe = page.getByRole('dialog', { name: 'O que encaixa Seg 09:00' });
+    for (const nome of ['Programação Web', 'Banco de Dados', 'Sistemas Híbridos']) {
+      await expect(encaixe.getByRole('button', { name: `Adicionar ${nome}, turma`, exact: false })).toBeVisible();
+    }
+    // Turma B de Programação Web é na quarta: não aparece na segunda.
+    await expect(encaixe.getByRole('button', { name: 'Adicionar Programação Web, turma B' })).toHaveCount(0);
+
+    await encaixe.getByRole('button', { name: 'Adicionar Banco de Dados, turma A' }).click();
+    await expect(encaixe).toHaveCount(0);
+    await expect(page.locator('.calendar__credits')).toContainText('4');
+
+    // Programação Web (seg 8–10) agora choca com Banco de Dados (seg 9–11).
+    await page.getByRole('button', { name: 'O que encaixa Seg 08:00' }).click();
+    const segunda8 = page.getByRole('dialog', { name: 'O que encaixa Seg 08:00' });
+    await expect(segunda8).toContainText('Nenhuma matéria tem turma livre neste horário');
+  });
+
   test('adiciona turma normal e ANP, detecta conflito normal e híbrido e exporta PNG', async ({ page }) => {
     await addSubject(page, 'Programação Web', 'A');
     await expect(page.locator('.calendar__credits')).toContainText('4');

@@ -19,7 +19,9 @@ import PlanosBar from '../Planos/PlanosBar';
 import useCompartilharLink from '../Compartilhar/useCompartilharLink';
 import { ListaCompartilhar, montarItensCompartilhar } from '../Compartilhar/CompartilharMenu';
 import { ACADEMIC_TERM } from '../../config/academicTerm';
-import { AddSheetContent, DetailSheetContent, TurmaSheetContent } from './GradeSheets';
+import { AddSheetContent, DetailSheetContent, EncaixeSheetContent, TurmaSheetContent } from './GradeSheets';
+import { oQueEncaixa } from '../../domain/sugestoes';
+import '../Sugestoes/Sugestoes.css';
 import Snackbar, { useSnackbar } from './Snackbar';
 import {
   blocosDoDia,
@@ -165,6 +167,7 @@ export default function MobileGrade({
       tipo,
       codigo: null,
       voltar: null,
+      slot: null,
       // Nova chave a cada matéria: a gaveta de turma começa sem seleção.
       chave: atual.chave + 1,
       ...extra
@@ -274,6 +277,17 @@ export default function MobileGrade({
 
   // ---------- gaveta ----------
   let conteudoSheet = null;
+  if (sheet.tipo === 'encaixe' && sheet.slot) {
+    conteudoSheet = (
+      <EncaixeSheetContent
+        titleId={titleId}
+        slot={sheet.slot}
+        resultado={oQueEncaixa(sheet.slot.dia, sheet.slot.hora, listas, contexto)}
+        onEscolher={adicionar}
+        onClose={fecharSheet}
+      />
+    );
+  }
   const sheetMateria = sheet.codigo ? catalogo.get(sheet.codigo) : null;
   if (sheet.tipo === 'add') {
     conteudoSheet = (
@@ -332,6 +346,8 @@ export default function MobileGrade({
 
   // ---------- corpo ----------
   const blocosHoje = blocosDoDia(materiasNoCalendario, dia);
+  const horasLivres = Array.from({ length: HORA_FIM - HORA_INICIO }, (_, k) => HORA_INICIO + k)
+    .filter(hora => !blocosHoje.some(bloco => bloco.inicio <= hora && hora < bloco.fim));
   const pct = Math.min(1, total / CREDIT_MAX);
   const tomCreditos = total >= CREDIT_MAX ? 'full' : total > CREDIT_WARN ? 'warn' : 'ok';
   const aviso = pendenciasCoreq[0];
@@ -413,6 +429,21 @@ export default function MobileGrade({
                   <span>{pad2(HORA_INICIO + k)}:00</span>
                 </div>
               ))}
+              {horasLivres.map(hora => (
+                <button
+                  key={`livre-${hora}`}
+                  className="m-free"
+                  type="button"
+                  aria-label={`O que encaixa ${DIAS_LONGOS[dia]} às ${pad2(hora)}:00`}
+                  onClick={() => abrirSheet('encaixe', { slot: { dia, hora } })}
+                  style={{
+                    top: `calc(var(--hour) * ${hora - HORA_INICIO} + 2px)`,
+                    height: 'calc(var(--hour) - 4px)'
+                  }}
+                >
+                  <i className="fi fi-br-plus" aria-hidden="true" />
+                </button>
+              ))}
               {blocosHoje.map(bloco => (
                 <button
                   key={bloco.key}
@@ -438,7 +469,7 @@ export default function MobileGrade({
               {blocosHoje.length === 0 && (
                 <div className="m-empty">
                   <strong>Nenhuma aula na {DIAS_LONGOS[dia]}</strong>
-                  Toque em “Adicionar matéria” para montar este dia.
+                  Toque num horário para ver o que encaixa, ou em “Adicionar matéria”.
                 </div>
               )}
             </div>

@@ -27,7 +27,7 @@
   position: relative;
   animation: slideUp 0.3s ease;
   max-height: 80vh; /* keep modal inside viewport */
-  overflow: hidden; /* inner area will scroll when needed */
+  overflow-y: auto; /* a seção "Fazer esta matéria libera" pode passar da altura */
 }
 
 .modal-close {

@@ -40,6 +40,7 @@ span[class*=" fi-br-"]::before {
 .fi-br-exchange::before { content: "\f5ed"; }
 .fi-br-info::before { content: "\f813"; }
 .fi-br-lock::before { content: "\f8dd"; }
+.fi-br-unlock::before { content: "\fe71"; }
 .fi-br-link::before { content: "\f8c2"; }
 .fi-br-menu-dots::before { content: "\f92d"; }
 .fi-br-menu-dots-vertical::before { content: "\f92c"; }

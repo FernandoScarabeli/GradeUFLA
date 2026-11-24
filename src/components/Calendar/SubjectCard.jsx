@@ -1,4 +1,6 @@
 import { getNomeMateriaOuCodigo, getPendenciasPrerequisito } from '../../data';
+import { contarDestravadas } from '../../domain/sugestoes';
+import '../Sugestoes/Sugestoes.css';
 
 export default function SubjectCard({
   materia,
@@ -32,6 +34,10 @@ export default function SubjectCard({
     materiasNoCalendario,
     prerequisitosConfirmados: materiasMinimoConfirmadas,
     allMateriasList
+  });
+  const destrava = contarDestravadas(materia.codigo, allMateriasList, {
+    materiasAprovadas,
+    prerequisitosConfirmados: materiasMinimoConfirmadas
   });
   const isBeingDragged = isDragging && draggingMateria?.codigo === materia.codigo;
 
@@ -93,6 +99,15 @@ export default function SubjectCard({
         <span className="materia-card__turmas-count">
           {(materia.turmas || []).length} turma{(materia.turmas || []).length > 1 ? 's' : ''}
         </span>
+        {destrava > 0 && (
+          <span
+            className="materia-card__destrava selo-destrava"
+            title={`Pré-requisito de ${destrava} matéria${destrava > 1 ? 's' : ''} que você ainda não fez`}
+          >
+            <i className="fi fi-br-unlock" aria-hidden="true" />
+            libera {destrava}
+          </span>
+        )}
       </div>
 
       {tipo === 'pendente' && materia.semestreOriginal && (
